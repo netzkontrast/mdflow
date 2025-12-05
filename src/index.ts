@@ -8,6 +8,7 @@ import { resolveContextGlobs, formatContextAsXml, getContextStats, type ContextF
 import { extractOutput, isValidExtractMode, type ExtractMode } from "./extract";
 import { generateCacheKey, readCache, writeCache } from "./cache";
 import { validatePrerequisites, handlePrerequisiteFailure } from "./prerequisites";
+import { formatDryRun, toCommandList, type DryRunInfo } from "./dryrun";
 import type { InputField } from "./types";
 import { dirname } from "path";
 
@@ -29,7 +30,7 @@ async function readStdin(): Promise<string> {
 }
 
 async function main() {
-  const { filePath, overrides, appendText, templateVars, noCache } = parseCliArgs(process.argv);
+  const { filePath, overrides, appendText, templateVars, noCache, dryRun } = parseCliArgs(process.argv);
 
   if (!filePath) {
     console.error("Usage: <file.md> [text] [options]");
@@ -117,9 +118,6 @@ async function main() {
     }
   }
 
-  // Run before-commands
-  const beforeResults = await runBeforeCommands(frontmatter.before);
-
   // Build final body with context, stdin, and appended text
   let finalBody = body;
   if (contextXml) {
@@ -132,8 +130,28 @@ async function main() {
     finalBody = `${finalBody}\n\n${appendText}`;
   }
 
-  // Build and run copilot
+  // Build copilot args
   const args = buildCopilotArgs(frontmatter);
+
+  // Handle dry-run mode - show what would be executed without running
+  if (dryRun) {
+    const dryRunInfo: DryRunInfo = {
+      frontmatter,
+      prompt: finalBody,
+      copilotArgs: args,
+      contextFiles,
+      beforeCommands: toCommandList(frontmatter.before),
+      afterCommands: toCommandList(frontmatter.after),
+      templateVars: allTemplateVars,
+    };
+    console.log(formatDryRun(dryRunInfo));
+    process.exit(0);
+  }
+
+  // Run before-commands
+  const beforeResults = await runBeforeCommands(frontmatter.before);
+
+  // Build prompt with before-command results
   const prompt = buildPrompt(beforeResults, finalBody);
 
   // Capture output if we have extract mode, after commands, or caching

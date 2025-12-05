@@ -10,6 +10,7 @@ describe("parseCliArgs", () => {
     expect(result.appendText).toBe("");
     expect(result.templateVars).toEqual({});
     expect(result.noCache).toBe(false);
+    expect(result.dryRun).toBe(false);
   });
 
   test("extracts positional text after file path", () => {
@@ -102,6 +103,11 @@ describe("parseCliArgs", () => {
   test("parses --no-cache flag", () => {
     const result = parseCliArgs(["node", "script", "DEMO.md", "--no-cache"]);
     expect(result.noCache).toBe(true);
+  });
+
+  test("parses --dry-run flag", () => {
+    const result = parseCliArgs(["node", "script", "DEMO.md", "--dry-run"]);
+    expect(result.dryRun).toBe(true);
   });
 });
 
