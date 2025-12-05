@@ -11,12 +11,15 @@
     "md-agent": "bun run src/index.ts"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/js-yaml": "^4.0.9"
   },
   "peerDependencies": {
     "typescript": "^5"
   },
   "dependencies": {
-    "@inquirer/prompts": "^8.0.2"
+    "@inquirer/prompts": "^8.0.2",
+    "js-yaml": "^4.1.1",
+    "zod": "^4.1.13"
   }
 }

@@ -7,10 +7,18 @@ export interface InputField {
   choices?: string[];  // For select type
 }
 
+/** Prerequisites for script execution */
+export interface Prerequisites {
+  bin?: string[];   // Required binaries
+  env?: string[];   // Required environment variables
+}
+
 export interface CopilotFrontmatter {
   inputs?: InputField[];
   context?: string | string[];  // Glob patterns for files to include
   extract?: "json" | "code" | "markdown" | "raw";  // Output extraction mode
+  requires?: Prerequisites;     // Prerequisite checks
+  cache?: boolean;              // Enable result caching
   before?: string | string[];
   after?: string | string[];
   model?:
