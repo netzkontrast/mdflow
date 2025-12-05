@@ -2,6 +2,7 @@
 import { parseFrontmatter } from "./parse";
 import { parseCliArgs, mergeFrontmatter } from "./cli";
 import { runBeforeCommands, runAfterCommands, buildCopilotArgs, buildPrompt, runCopilot, slugify } from "./run";
+import { substituteTemplateVars, extractTemplateVars } from "./template";
 
 /**
  * Read stdin if it's being piped (not a TTY)
@@ -21,10 +22,10 @@ async function readStdin(): Promise<string> {
 }
 
 async function main() {
-  const { filePath, overrides } = parseCliArgs(process.argv);
+  const { filePath, overrides, appendText, templateVars } = parseCliArgs(process.argv);
 
   if (!filePath) {
-    console.error("Usage: <file.md> [options]");
+    console.error("Usage: <file.md> [text] [options]");
     console.error("Run with --help for more options");
     console.error("Stdin can be piped to include in the prompt");
     process.exit(1);
@@ -41,7 +42,19 @@ async function main() {
   const stdinContent = await readStdin();
 
   const content = await file.text();
-  const { frontmatter: baseFrontmatter, body } = parseFrontmatter(content);
+  const { frontmatter: baseFrontmatter, body: rawBody } = parseFrontmatter(content);
+
+  // Check for missing template variables
+  const requiredVars = extractTemplateVars(rawBody);
+  const missingVars = requiredVars.filter(v => !(v in templateVars));
+  if (missingVars.length > 0) {
+    console.error(`Missing template variables: ${missingVars.join(", ")}`);
+    console.error(`Use --${missingVars[0]} <value> to provide values`);
+    process.exit(1);
+  }
+
+  // Apply template substitution to body
+  const body = substituteTemplateVars(rawBody, templateVars);
 
   // Merge frontmatter with CLI overrides
   const frontmatter = mergeFrontmatter(baseFrontmatter, overrides);
@@ -55,10 +68,13 @@ async function main() {
   // Run before-commands
   const beforeResults = await runBeforeCommands(frontmatter.before);
 
-  // Include stdin content in the prompt if provided
+  // Build final body with stdin and appended text
   let finalBody = body;
   if (stdinContent) {
-    finalBody = `<stdin>\n${stdinContent}\n</stdin>\n\n${body}`;
+    finalBody = `<stdin>\n${stdinContent}\n</stdin>\n\n${finalBody}`;
+  }
+  if (appendText) {
+    finalBody = `${finalBody}\n\n${appendText}`;
   }
 
   // Build and run copilot

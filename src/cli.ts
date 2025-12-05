@@ -1,9 +1,28 @@
 import type { CopilotFrontmatter } from "./types";
+import { parseTemplateArgs, type TemplateVars } from "./template";
 
 export interface CliArgs {
   filePath: string;
   overrides: Partial<CopilotFrontmatter>;
+  appendText: string;
+  templateVars: TemplateVars;
 }
+
+/** Known CLI flags that shouldn't be treated as template variables */
+export const KNOWN_FLAGS = new Set([
+  "--model", "-m",
+  "--agent",
+  "--silent", "-s", "--no-silent",
+  "--interactive", "-i",
+  "--allow-all-tools",
+  "--allow-all-paths",
+  "--allow-tool",
+  "--deny-tool",
+  "--add-dir",
+  "--help", "-h",
+  "--dry-run",
+  "--no-cache",
+]);
 
 /**
  * Parse CLI arguments and extract overrides for frontmatter
@@ -12,14 +31,20 @@ export function parseCliArgs(argv: string[]): CliArgs {
   const args = argv.slice(2); // Skip node and script path
   let filePath = "";
   const overrides: Partial<CopilotFrontmatter> = {};
+  const positionalArgs: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     const nextArg = args[i + 1];
 
-    // File path (first non-flag argument)
-    if (!arg.startsWith("-") && !filePath) {
-      filePath = arg;
+    // Non-flag argument
+    if (!arg.startsWith("-")) {
+      if (!filePath) {
+        filePath = arg;
+      } else {
+        // Additional positional args after file path
+        positionalArgs.push(arg);
+      }
       continue;
     }
 
@@ -90,7 +115,10 @@ export function parseCliArgs(argv: string[]): CliArgs {
     }
   }
 
-  return { filePath, overrides };
+  // Parse template variables from remaining args
+  const templateVars = parseTemplateArgs(args, KNOWN_FLAGS);
+
+  return { filePath, overrides, appendText: positionalArgs.join(" "), templateVars };
 }
 
 /**
@@ -109,7 +137,10 @@ export function mergeFrontmatter(
 
 function printHelp() {
   console.log(`
-Usage: <file.md> [options]
+Usage: <file.md> [text] [options]
+
+Arguments:
+  text                    Additional text appended to the prompt body
 
 Options:
   --model, -m <model>     Override AI model (claude-haiku-4.5, gpt-5, etc.)
@@ -125,8 +156,8 @@ Options:
   --help, -h              Show this help
 
 Examples:
-  DEMO.md --model gpt-5
-  DEMO.md --silent --allow-all-tools
-  CHECK_ACTIONS.md -m claude-opus-4.5 -s
+  DEMO.md "focus on error handling"
+  DEMO.md --model gpt-5 "be concise"
+  CHECK_ACTIONS.md -m claude-opus-4.5
 `);
 }

@@ -7,6 +7,19 @@ describe("parseCliArgs", () => {
     const result = parseCliArgs(["node", "script", "DEMO.md"]);
     expect(result.filePath).toBe("DEMO.md");
     expect(result.overrides).toEqual({});
+    expect(result.appendText).toBe("");
+    expect(result.templateVars).toEqual({});
+  });
+
+  test("extracts positional text after file path", () => {
+    const result = parseCliArgs(["node", "script", "DEMO.md", "focus on errors"]);
+    expect(result.filePath).toBe("DEMO.md");
+    expect(result.appendText).toBe("focus on errors");
+  });
+
+  test("joins multiple positional args", () => {
+    const result = parseCliArgs(["node", "script", "DEMO.md", "be", "concise"]);
+    expect(result.appendText).toBe("be concise");
   });
 
   test("parses --model flag", () => {
@@ -62,6 +75,27 @@ describe("parseCliArgs", () => {
     const result = parseCliArgs(["node", "script", "--model", "gpt-5", "DEMO.md"]);
     expect(result.filePath).toBe("DEMO.md");
     expect(result.overrides.model).toBe("gpt-5");
+  });
+
+  test("combines text with flags", () => {
+    const result = parseCliArgs(["node", "script", "DEMO.md", "--model", "gpt-5", "be concise"]);
+    expect(result.filePath).toBe("DEMO.md");
+    expect(result.overrides.model).toBe("gpt-5");
+    expect(result.appendText).toBe("be concise");
+  });
+
+  test("extracts template variables from unknown flags", () => {
+    const result = parseCliArgs([
+      "node", "script", "DEMO.md",
+      "--model", "gpt-5",
+      "--target", "src/utils.ts",
+      "--reference", "src/main.ts"
+    ]);
+    expect(result.overrides.model).toBe("gpt-5");
+    expect(result.templateVars).toEqual({
+      target: "src/utils.ts",
+      reference: "src/main.ts"
+    });
   });
 });
 
