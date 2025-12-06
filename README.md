@@ -567,13 +567,63 @@ ma() {
 
 ### Windows
 
-Windows doesn't have an equivalent to suffix aliases. Current options:
+Windows has several approaches to achieve similar behavior:
 
-1. **WSL (recommended)**: Use Windows Subsystem for Linux with zsh
-2. **Git Bash**: Use the bash approach above
-3. **Direct invocation**: Always use `ma TASK.md`
+#### Option 1: PowerShell Profile (Recommended)
 
-We're exploring better Windows solutions. Contributions welcome!
+Add a "command not found" handler to your PowerShell profile that intercepts `.md` files:
+
+```powershell
+# Open profile: code $PROFILE (create if needed)
+
+$ExecutionContext.SessionState.InvokeCommand.CommandNotFoundAction = {
+    param($commandName, $commandLookupEventArgs)
+
+    if ($commandName -match '\.md$' -and (Test-Path $commandName)) {
+        $commandLookupEventArgs.CommandScriptBlock = {
+            param($file) ma $file $args
+        }.GetNewClosure()
+        $commandLookupEventArgs.StopSearch = $true
+    }
+}
+```
+
+Now `TASK.md` runs directly in PowerShell.
+
+#### Option 2: File Association (System-wide)
+
+Make `.md` files executable system-wide using Windows file associations:
+
+```cmd
+:: Run as Administrator
+assoc .md=MarkdownAgent
+ftype MarkdownAgent=ma "%1" %*
+
+:: Add .MD to executable extensions (restart terminal after)
+setx PATHEXT "%PATHEXT%;.MD"
+```
+
+#### Option 3: WSL (Full zsh experience)
+
+For the complete zsh suffix alias experience, use Windows Subsystem for Linux:
+
+```bash
+# In WSL, run ma --setup as normal
+wsl
+ma --setup
+```
+
+#### Option 4: Wrapper Scripts
+
+Create a `.cmd` file alongside your agent:
+
+```cmd
+:: TASK.cmd - runs TASK.md
+@echo off
+ma "%~dp0TASK.md" %*
+```
+
+Then just type `TASK` from anywhere on PATH.
 
 ## Building Your Agent Library
 
