@@ -4,7 +4,7 @@
 
 export * from "./types";
 export * from "./factory";
-export { CopilotHarness, CopilotHarness as CopilotRunner } from "./copilot";
-export { ClaudeHarness, ClaudeHarness as ClaudeRunner } from "./claude";
-export { CodexHarness, CodexHarness as CodexRunner } from "./codex";
-export { GeminiHarness, GeminiHarness as GeminiRunner } from "./gemini";
+export { CopilotHarness } from "./copilot";
+export { ClaudeHarness } from "./claude";
+export { CodexHarness } from "./codex";
+export { GeminiHarness } from "./gemini";

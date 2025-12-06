@@ -11,11 +11,6 @@ import {
 import type { RunContext } from "./types";
 import type { AgentFrontmatter } from "../types";
 
-// Legacy aliases for backward-compatible tests
-const detectRunnerFromModel = detectHarnessFromModel;
-const createRunner = createHarness;
-const resolveRunnerSync = resolveHarnessSync;
-
 // Helper to create a minimal RunContext
 function makeContext(frontmatter: AgentFrontmatter = {}): RunContext {
   return {
@@ -575,21 +570,21 @@ describe("resolveHarnessSync", () => {
   test("uses CLI harness when provided", () => {
     const harness = resolveHarnessSync({
       cliHarness: "claude",
-      frontmatter: { runner: "copilot" }
+      frontmatter: { harness: "copilot" }
     });
     expect(harness.name).toBe("claude");
   });
 
-  test("uses frontmatter runner when no CLI harness", () => {
+  test("uses frontmatter harness when no CLI harness", () => {
     const harness = resolveHarnessSync({
-      frontmatter: { runner: "codex" }
+      frontmatter: { harness: "codex" }
     });
     expect(harness.name).toBe("codex");
   });
 
-  test("ignores frontmatter runner:auto", () => {
+  test("ignores frontmatter harness:auto", () => {
     const harness = resolveHarnessSync({
-      frontmatter: { runner: "auto", model: "sonnet" }
+      frontmatter: { harness: "auto", model: "sonnet" }
     });
     expect(harness.name).toBe("claude"); // Falls through to model detection
   });

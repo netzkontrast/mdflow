@@ -20,7 +20,8 @@ describe("formatDryRun", () => {
     const info: DryRunInfo = {
       frontmatter: {},
       prompt: "Test prompt",
-      copilotArgs: ["-p"],
+      harnessArgs: ["-p"],
+      harnessName: "copilot",
       contextFiles: [],
       beforeCommands: [],
       afterCommands: [],
@@ -34,7 +35,8 @@ describe("formatDryRun", () => {
     const info: DryRunInfo = {
       frontmatter: {},
       prompt: "My test prompt content",
-      copilotArgs: ["-p"],
+      harnessArgs: ["-p"],
+      harnessName: "copilot",
       contextFiles: [],
       beforeCommands: [],
       afterCommands: [],
@@ -49,7 +51,8 @@ describe("formatDryRun", () => {
     const info: DryRunInfo = {
       frontmatter: {},
       prompt: "Test",
-      copilotArgs: [],
+      harnessArgs: [],
+      harnessName: "copilot",
       contextFiles: [],
       beforeCommands: [],
       afterCommands: [],
@@ -67,7 +70,8 @@ describe("formatDryRun", () => {
     const info: DryRunInfo = {
       frontmatter: {},
       prompt: "Test",
-      copilotArgs: [],
+      harnessArgs: [],
+      harnessName: "copilot",
       contextFiles: [
         { path: "/full/path/utils.ts", relativePath: "utils.ts", content: "const x = 1;\nconst y = 2;" }
       ],
@@ -85,7 +89,8 @@ describe("formatDryRun", () => {
     const info: DryRunInfo = {
       frontmatter: {},
       prompt: "Test",
-      copilotArgs: [],
+      harnessArgs: [],
+      harnessName: "copilot",
       contextFiles: [],
       beforeCommands: ["git status", "cat README.md"],
       afterCommands: [],
@@ -101,7 +106,8 @@ describe("formatDryRun", () => {
     const info: DryRunInfo = {
       frontmatter: {},
       prompt: "Test",
-      copilotArgs: [],
+      harnessArgs: [],
+      harnessName: "copilot",
       contextFiles: [],
       beforeCommands: [],
       afterCommands: ["pbcopy", "echo done"],
@@ -113,11 +119,12 @@ describe("formatDryRun", () => {
     expect(output).toContain("receives copilot output via stdin");
   });
 
-  test("includes copilot command", () => {
+  test("includes harness command", () => {
     const info: DryRunInfo = {
       frontmatter: { model: "gpt-5" },
       prompt: "Test",
-      copilotArgs: ["--model", "gpt-5", "-p"],
+      harnessArgs: ["--model", "gpt-5", "-p"],
+      harnessName: "copilot",
       contextFiles: [],
       beforeCommands: [],
       afterCommands: [],
@@ -134,7 +141,8 @@ describe("formatDryRun", () => {
         requires: { bin: ["docker", "kubectl"], env: ["API_KEY"] }
       },
       prompt: "Test",
-      copilotArgs: [],
+      harnessArgs: [],
+      harnessName: "copilot",
       contextFiles: [],
       beforeCommands: [],
       afterCommands: [],
@@ -156,7 +164,8 @@ describe("formatDryRun", () => {
         silent: true,
       },
       prompt: "Test",
-      copilotArgs: [],
+      harnessArgs: [],
+      harnessName: "copilot",
       contextFiles: [],
       beforeCommands: [],
       afterCommands: [],
@@ -175,7 +184,8 @@ describe("formatDryRun", () => {
     const info: DryRunInfo = {
       frontmatter: {},
       prompt: longPrompt,
-      copilotArgs: [],
+      harnessArgs: [],
+      harnessName: "copilot",
       contextFiles: [],
       beforeCommands: [],
       afterCommands: [],

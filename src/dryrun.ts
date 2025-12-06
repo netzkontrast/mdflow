@@ -10,14 +10,8 @@ import type { HarnessName } from "./harnesses/types";
 export interface DryRunInfo {
   frontmatter: AgentFrontmatter;
   prompt: string;
-  /** @deprecated Use harnessArgs instead */
-  copilotArgs: string[];
-  harnessArgs?: string[];
-  harnessName?: HarnessName;
-  /** @deprecated Use harnessArgs instead */
-  runnerArgs?: string[];
-  /** @deprecated Use harnessName instead */
-  runnerName?: HarnessName;
+  harnessArgs: string[];
+  harnessName: HarnessName;
   contextFiles: ContextFile[];
   beforeCommands: string[];
   afterCommands: string[];
@@ -29,8 +23,8 @@ export interface DryRunInfo {
  */
 export function formatDryRun(info: DryRunInfo): string {
   const sections: string[] = [];
-  const harnessName = info.harnessName || info.runnerName || "copilot";
-  const args = info.harnessArgs || info.runnerArgs || info.copilotArgs;
+  const harnessName = info.harnessName;
+  const args = info.harnessArgs;
 
   // Header
   sections.push("═══════════════════════════════════════════════════════════════");

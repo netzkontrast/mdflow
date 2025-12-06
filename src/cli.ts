@@ -10,8 +10,6 @@ export interface CliArgs {
   noCache: boolean;
   dryRun: boolean;
   verbose: boolean;
-  /** @deprecated Use harness instead */
-  runner?: HarnessName;
   harness?: HarnessName;
   passthroughArgs: string[];
   check: boolean;
@@ -36,7 +34,7 @@ export const KNOWN_FLAGS = new Set([
   "--dry-run",
   "--no-cache",
   "--verbose", "-v",
-  "--runner", "-r",
+  "--harness", "-r",
   "--check",
   "--json",
   "--run-batch",
@@ -46,9 +44,6 @@ export const KNOWN_FLAGS = new Set([
 ]);
 
 const VALID_HARNESSES = new Set(["claude", "codex", "copilot", "gemini"]);
-
-/** @deprecated Use VALID_HARNESSES instead */
-const VALID_RUNNERS = VALID_HARNESSES;
 
 /**
  * Parse CLI arguments and extract overrides for frontmatter
@@ -157,7 +152,6 @@ export function parseCliArgs(argv: string[]): CliArgs {
         break;
 
       case "--harness":
-      case "--runner":  // Legacy support
       case "-r":
         if (nextArg && VALID_HARNESSES.has(nextArg)) {
           harness = nextArg as HarnessName;
@@ -224,7 +218,6 @@ export function parseCliArgs(argv: string[]): CliArgs {
     dryRun,
     verbose,
     harness,
-    runner: harness,  // Legacy support
     passthroughArgs,
     check,
     json,

@@ -2,10 +2,10 @@
  * CLI Flag Validation Tests
  *
  * These smoke tests run --help on each CLI tool and validate that
- * the flags we use in our runner implementations are actually valid.
+ * the flags we use in our harness implementations are actually valid.
  *
  * This prevents drift between our code and the actual CLI tools.
- * Run: bun test src/runners/cli-flags.test.ts
+ * Run: bun test src/harnesses/cli-flags.test.ts
  */
 
 import { describe, test, expect, beforeAll } from "bun:test";
@@ -13,15 +13,15 @@ import { describe, test, expect, beforeAll } from "bun:test";
 interface CliTool {
   name: string;
   command: string;
-  /** Flags we use in our runner (extracted from runner implementations) */
+  /** Flags we use in our harness (extracted from harness implementations) */
   usedFlags: string[];
   /** Subcommands we use (like "exec" for codex) */
   usedSubcommands?: string[];
 }
 
 /**
- * Flags used by each runner implementation
- * Keep in sync with: src/runners/*.ts and src/repair.ts
+ * Flags used by each harness implementation
+ * Keep in sync with: src/harnesses/*.ts and src/repair.ts
  */
 const CLI_TOOLS: CliTool[] = [
   {

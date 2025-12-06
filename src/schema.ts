@@ -28,9 +28,6 @@ export const inputFieldSchema = z.object({
 /** Harness selection */
 const harnessSchema = z.enum(["claude", "codex", "copilot", "gemini", "auto"]).optional();
 
-/** @deprecated Use harnessSchema instead */
-const runnerSchema = harnessSchema;
-
 /** Supported AI models (flexible string to support all backends) */
 const modelSchema = z.string().optional();
 
@@ -78,10 +75,8 @@ const geminiConfigSchema = z.object({
 
 /** Main frontmatter schema */
 export const frontmatterSchema = z.object({
-  // Harness selection (support both new and legacy)
+  // Harness selection
   harness: harnessSchema,
-  /** @deprecated Use harness instead */
-  runner: runnerSchema,
 
   // Wizard mode inputs
   inputs: z.array(inputFieldSchema).optional(),

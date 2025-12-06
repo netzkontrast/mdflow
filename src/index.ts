@@ -329,11 +329,8 @@ async function main() {
     const dryRunInfo: DryRunInfo = {
       frontmatter,
       prompt: finalBody,
-      copilotArgs: harnessArgs,  // Legacy field
       harnessArgs,
       harnessName: harness.name,
-      runnerArgs: harnessArgs,   // Legacy field
-      runnerName: harness.name,  // Legacy field
       contextFiles,
       beforeCommands: toCommandList(frontmatter.before),
       afterCommands: toCommandList(frontmatter.after),

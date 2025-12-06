@@ -51,7 +51,7 @@ Let me know if you need changes.`;
       "branch": "feat/new-feature",
       "vars": { "file": "src/api.ts", "task": "Add endpoint" },
       "model": "sonnet",
-      "runner": "claude"
+      "harness": "claude"
     }]`;
     const jobs = parseBatchManifest(input);
     expect(jobs[0]).toEqual({
@@ -59,7 +59,7 @@ Let me know if you need changes.`;
       branch: "feat/new-feature",
       vars: { file: "src/api.ts", task: "Add endpoint" },
       model: "sonnet",
-      runner: "claude",
+      harness: "claude",
     });
   });
 

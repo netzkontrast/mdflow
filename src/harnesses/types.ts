@@ -4,9 +4,6 @@ import type { ContextFile } from "../context";
 /** Supported harness backends */
 export type HarnessName = "claude" | "codex" | "copilot" | "gemini";
 
-/** @deprecated Use HarnessName instead */
-export type RunnerName = HarnessName;
-
 /** Context passed to harnesses for execution */
 export interface RunContext {
   /** The final compiled prompt (with before output, context, stdin) */
@@ -40,9 +37,6 @@ export interface Harness {
   run(ctx: RunContext): Promise<RunResult>;
 }
 
-/** @deprecated Use Harness instead */
-export type Runner = Harness;
-
 /** Base harness with shared implementation */
 export abstract class BaseHarness implements Harness {
   abstract readonly name: HarnessName;
@@ -70,6 +64,3 @@ export abstract class BaseHarness implements Harness {
     return { exitCode, output };
   }
 }
-
-/** @deprecated Use BaseHarness instead */
-export const BaseRunner = BaseHarness;

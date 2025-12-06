@@ -1,8 +1,5 @@
 import type { HarnessName } from "./harnesses/types";
 
-/** @deprecated Use HarnessName instead */
-export type RunnerName = HarnessName;
-
 /** Input field definition for wizard mode */
 export interface InputField {
   name: string;
@@ -98,8 +95,6 @@ export interface SessionConfig {
 /** Universal frontmatter that maps to all backends */
 export interface AgentFrontmatter {
   // --- Harness Selection ---
-  /** @deprecated Use harness instead */
-  runner?: HarnessName | "auto";
   harness?: HarnessName | "auto";  // Default: auto
 
   // --- Identity ---

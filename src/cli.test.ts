@@ -112,19 +112,19 @@ describe("parseCliArgs", () => {
     expect(result.dryRun).toBe(true);
   });
 
-  test("parses --runner flag", () => {
-    const result = parseCliArgs(["node", "script", "DEMO.md", "--runner", "claude"]);
-    expect(result.runner).toBe("claude");
+  test("parses --harness flag", () => {
+    const result = parseCliArgs(["node", "script", "DEMO.md", "--harness", "claude"]);
+    expect(result.harness).toBe("claude");
   });
 
   test("parses -r short flag", () => {
     const result = parseCliArgs(["node", "script", "DEMO.md", "-r", "codex"]);
-    expect(result.runner).toBe("codex");
+    expect(result.harness).toBe("codex");
   });
 
-  test("runner defaults to undefined", () => {
+  test("harness defaults to undefined", () => {
     const result = parseCliArgs(["node", "script", "DEMO.md"]);
-    expect(result.runner).toBeUndefined();
+    expect(result.harness).toBeUndefined();
   });
 
   test("collects passthrough args after --", () => {

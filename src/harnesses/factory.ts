@@ -49,9 +49,6 @@ export function createHarness(name: HarnessName): Harness {
   }
 }
 
-/** @deprecated Use createHarness instead */
-export const createRunner = createHarness;
-
 /**
  * Detect harness from model name
  */
@@ -82,9 +79,6 @@ export function detectHarnessFromModel(model: string): HarnessName | null {
   return null;
 }
 
-/** @deprecated Use detectHarnessFromModel instead */
-export const detectRunnerFromModel = detectHarnessFromModel;
-
 /**
  * Check if a harness binary is available
  */
@@ -101,18 +95,12 @@ export async function isHarnessAvailable(name: HarnessName): Promise<boolean> {
   }
 }
 
-/** @deprecated Use isHarnessAvailable instead */
-export const isRunnerAvailable = isHarnessAvailable;
-
 export interface ResolveHarnessOptions {
   /** CLI override (highest priority) */
   cliHarness?: HarnessName;
   /** Parsed frontmatter */
   frontmatter: AgentFrontmatter;
 }
-
-/** @deprecated Use ResolveHarnessOptions instead */
-export type ResolveRunnerOptions = ResolveHarnessOptions;
 
 /**
  * Helper to determine harness name from options
@@ -125,10 +113,9 @@ function determineHarnessName(options: ResolveHarnessOptions): HarnessName {
     return cliHarness;
   }
 
-  // 2. Frontmatter explicit harness (support both 'harness' and legacy 'runner')
-  const harnessField = (frontmatter as any).harness || frontmatter.runner;
-  if (harnessField && harnessField !== "auto") {
-    return harnessField;
+  // 2. Frontmatter explicit harness
+  if (frontmatter.harness && frontmatter.harness !== "auto") {
+    return frontmatter.harness;
   }
 
   // 3. Model heuristic
@@ -139,7 +126,7 @@ function determineHarnessName(options: ResolveHarnessOptions): HarnessName {
     }
   }
 
-  // 4. Fallback to copilot for backward compatibility
+  // 4. Fallback to copilot
   return "copilot";
 }
 
@@ -155,9 +142,6 @@ export async function resolveHarness(options: ResolveHarnessOptions): Promise<Ha
   return createHarness(harnessName);
 }
 
-/** @deprecated Use resolveHarness instead */
-export const resolveRunner = resolveHarness;
-
 /**
  * Get harness without async availability check (synchronous version)
  */
@@ -165,9 +149,6 @@ export function resolveHarnessSync(options: ResolveHarnessOptions): Harness {
   const harnessName = determineHarnessName(options);
   return createHarness(harnessName);
 }
-
-/** @deprecated Use resolveHarnessSync instead */
-export const resolveRunnerSync = resolveHarnessSync;
 
 /**
  * List all available harnesses with their availability status
@@ -182,6 +163,3 @@ export async function listHarnesses(): Promise<Array<{ name: HarnessName; availa
   );
   return results;
 }
-
-/** @deprecated Use listHarnesses instead */
-export const listRunners = listHarnesses;

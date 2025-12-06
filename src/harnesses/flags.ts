@@ -12,7 +12,7 @@ import type { AgentFrontmatter } from "../types";
 const SYSTEM_KEYS = new Set([
   // Harness selection (support both new and legacy)
   "harness",
-  "runner",
+  "runner",  // @deprecated - use harness
   // Harness-specific configs (handled separately)
   "claude", "codex", "copilot", "gemini",
   // markdown-agent specific features
@@ -138,9 +138,6 @@ export function getHarnessPassthroughArgs(
 
   return args;
 }
-
-/** @deprecated Use getHarnessPassthroughArgs instead */
-export const getRunnerPassthroughArgs = getHarnessPassthroughArgs;
 
 /**
  * Helper to get array value from string or string[]

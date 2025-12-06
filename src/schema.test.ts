@@ -111,23 +111,23 @@ describe("validateFrontmatter", () => {
   });
 });
 
-describe("runner selection", () => {
-  test("validates runner field", () => {
-    for (const runner of ["claude", "codex", "copilot", "auto"]) {
-      const result = validateFrontmatter({ runner });
-      expect(result.runner).toBe(runner);
+describe("harness selection", () => {
+  test("validates harness field", () => {
+    for (const harness of ["claude", "codex", "copilot", "auto"]) {
+      const result = validateFrontmatter({ harness });
+      expect(result.harness).toBe(harness);
     }
   });
 
-  test("rejects invalid runner", () => {
-    expect(() => validateFrontmatter({ runner: "invalid" })).toThrow();
+  test("rejects invalid harness", () => {
+    expect(() => validateFrontmatter({ harness: "invalid" })).toThrow();
   });
 });
 
 describe("backend-specific configs", () => {
   test("validates claude config", () => {
     const result = validateFrontmatter({
-      runner: "claude",
+      harness: "claude",
       claude: {
         "dangerously-skip-permissions": true,
         "mcp-config": "./mcp.json",
@@ -148,7 +148,7 @@ describe("backend-specific configs", () => {
 
   test("validates codex config", () => {
     const result = validateFrontmatter({
-      runner: "codex",
+      harness: "codex",
       codex: {
         sandbox: "workspace-write",
         approval: "on-failure",

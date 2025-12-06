@@ -28,8 +28,8 @@ export interface BatchJob {
   /** Override model */
   model?: string;
 
-  /** Override runner */
-  runner?: string;
+  /** Override harness */
+  harness?: string;
 }
 
 export interface BatchOptions {
@@ -106,7 +106,7 @@ export async function runBatch(
 
       // Overrides
       if (job.model) args.push("--model", job.model);
-      if (job.runner) args.push("--runner", job.runner);
+      if (job.harness) args.push("--harness", job.harness);
 
       // 4. Execute
       if (options.verbose) {
