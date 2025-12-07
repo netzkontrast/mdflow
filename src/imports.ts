@@ -23,6 +23,91 @@ import { MAX_INPUT_SIZE, FileSizeLimitError, exceedsLimit } from "./limits";
 /** Track files being processed to detect circular imports */
 type ImportStack = Set<string>;
 
+/**
+ * File extensions that are known to be binary
+ * These are checked first before content inspection
+ */
+const BINARY_EXTENSIONS = new Set([
+  // Images
+  ".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp", ".bmp", ".svg", ".tiff", ".tif",
+  // Executables and libraries
+  ".exe", ".dll", ".so", ".dylib", ".bin",
+  // Archives
+  ".zip", ".tar", ".gz", ".7z", ".rar", ".bz2", ".xz",
+  // Documents
+  ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+  // Databases
+  ".sqlite", ".db", ".sqlite3",
+  // Data files
+  ".dat", ".data",
+  // System files
+  ".DS_Store",
+  // Other binary formats
+  ".wasm", ".pyc", ".class", ".o", ".a", ".lib",
+]);
+
+/** Size of buffer to check for binary content (8KB) */
+const BINARY_CHECK_SIZE = 8192;
+
+/**
+ * Check if a file is binary based on extension or content
+ *
+ * @param filePath - Path to the file
+ * @param content - Optional buffer to check (if already read)
+ * @returns true if file appears to be binary
+ */
+export function isBinaryFile(filePath: string, content?: Buffer): boolean {
+  // Check extension first (fast path)
+  const ext = filePath.toLowerCase().match(/\.[^./\\]+$/)?.[0] || "";
+  if (BINARY_EXTENSIONS.has(ext)) {
+    return true;
+  }
+
+  // Check for files without extensions that are typically binary
+  const basename = filePath.split(/[/\\]/).pop() || "";
+  if (basename === ".DS_Store") {
+    return true;
+  }
+
+  // If content provided, check for null bytes
+  if (content) {
+    const checkSize = Math.min(content.length, BINARY_CHECK_SIZE);
+    for (let i = 0; i < checkSize; i++) {
+      if (content[i] === 0) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Check if a file is binary by reading its first bytes
+ *
+ * @param filePath - Path to the file
+ * @returns true if file appears to be binary
+ */
+export async function isBinaryFileAsync(filePath: string): Promise<boolean> {
+  // Check extension first (fast path)
+  if (isBinaryFile(filePath)) {
+    return true;
+  }
+
+  // Read first 8KB and check for null bytes
+  const file = Bun.file(filePath);
+  const buffer = await file.slice(0, BINARY_CHECK_SIZE).arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+
+  for (let i = 0; i < bytes.length; i++) {
+    if (bytes[i] === 0) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 /** Maximum token count before error (approx 4 chars per token) */
 export const MAX_TOKENS = 100_000;
 /** Warning threshold for high token count */
@@ -403,10 +488,18 @@ async function processGlobImport(
   const files: Array<{ path: string; content: string }> = [];
   let totalChars = 0;
 
+  const skippedBinaryFiles: string[] = [];
+
   for await (const file of glob.scan({ cwd: currentFileDir, absolute: true, onlyFiles: true })) {
     // Check gitignore
     const relativePath = relative(currentFileDir, file);
     if (ig.ignores(relativePath)) {
+      continue;
+    }
+
+    // Check if file is binary (skip with warning in glob imports)
+    if (await isBinaryFileAsync(file)) {
+      skippedBinaryFiles.push(relativePath);
       continue;
     }
 
@@ -421,6 +514,11 @@ async function processGlobImport(
     totalChars += content.length;
 
     files.push({ path: relativePath, content });
+  }
+
+  // Log warning about skipped binary files
+  if (skippedBinaryFiles.length > 0 && verbose) {
+    console.error(`[imports] Skipped ${skippedBinaryFiles.length} binary file(s): ${skippedBinaryFiles.join(", ")}`);
   }
 
   // Sort by path for consistent ordering
@@ -478,6 +576,11 @@ async function processFileImport(
       throw new FileSizeLimitError(resolvedPath, file.size);
     }
 
+    // Check for binary file (throw error for direct imports)
+    if (await isBinaryFileAsync(resolvedPath)) {
+      throw new Error(`Cannot import binary file: ${symbolParsed.path} (resolved to ${resolvedPath})`);
+    }
+
     if (verbose) {
       console.error(`[imports] Extracting symbol "${symbolParsed.symbol}" from: ${symbolParsed.path}`);
     }
@@ -499,6 +602,11 @@ async function processFileImport(
     // Check file size before reading
     if (exceedsLimit(file.size)) {
       throw new FileSizeLimitError(resolvedPath, file.size);
+    }
+
+    // Check for binary file (throw error for direct imports)
+    if (await isBinaryFileAsync(resolvedPath)) {
+      throw new Error(`Cannot import binary file: ${rangeParsed.path} (resolved to ${resolvedPath})`);
     }
 
     if (verbose) {
@@ -527,6 +635,11 @@ async function processFileImport(
   // Check file size before reading
   if (exceedsLimit(file.size)) {
     throw new FileSizeLimitError(resolvedPath, file.size);
+  }
+
+  // Check for binary file (throw error for direct imports)
+  if (await isBinaryFileAsync(resolvedPath)) {
+    throw new Error(`Cannot import binary file: ${importPath} (resolved to ${resolvedPath})`);
   }
 
   // Always log file loading to stderr for visibility
