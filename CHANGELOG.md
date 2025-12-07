@@ -1,3 +1,10 @@
+# [2.3.0](https://github.com/johnlindquist/markdown-agent/compare/v2.2.0...v2.3.0) (2025-12-07)
+
+
+### Features
+
+* add structured logging with pino ([65bdf56](https://github.com/johnlindquist/markdown-agent/commit/65bdf56837f50fb7de82ebf8b631a71776273240))
+
 # [2.2.0](https://github.com/johnlindquist/markdown-agent/compare/v2.1.1...v2.2.0) (2025-12-07)
 
 
