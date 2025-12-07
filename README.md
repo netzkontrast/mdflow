@@ -136,6 +136,7 @@ If no command can be resolved, you'll get an error with instructions.
 | Field | Type | Description |
 |-------|------|-------------|
 | `command` | string | Command to execute (e.g., `claude`, `gemini`, `codex`) |
+| `$1` | string | Map body to a flag instead of positional (e.g., `$1: prompt` → `--prompt <body>`) |
 | `inputs` | InputField[] | Wizard mode interactive prompts |
 | `context` | string \| string[] | Glob patterns for files to include |
 | `cache` | boolean | Enable result caching |
@@ -199,6 +200,22 @@ full-auto: true
 ---
 Analyze this codebase and suggest improvements.
 ```
+
+### Copilot (requires $1 mapping)
+
+Some tools don't accept positional prompts. Use `$1` to map the body to a flag:
+
+```markdown
+# task.copilot.md
+---
+model: gpt-4.1
+$1: prompt
+silent: true
+---
+Explain this code.
+```
+
+This runs: `copilot --model gpt-4.1 --prompt "Explain this code." --silent`
 
 ### With Context Files
 
