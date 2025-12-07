@@ -37,16 +37,17 @@ describe("parseCliArgs", () => {
     expect(result.command).toBe("gemini");
   });
 
-  test("extracts template variables from unknown flags", () => {
+  test("passes unknown flags through to command", () => {
     const result = parseCliArgs([
       "node", "script", "DEMO.md",
       "--target", "src/utils.ts",
       "--reference", "src/main.ts"
     ]);
-    expect(result.templateVars).toEqual({
-      target: "src/utils.ts",
-      reference: "src/main.ts"
-    });
+    expect(result.passthroughArgs).toEqual([
+      "--target", "src/utils.ts",
+      "--reference", "src/main.ts"
+    ]);
+    expect(result.templateVars).toEqual({});
   });
 
   test("parses --no-cache flag", () => {
@@ -64,11 +65,11 @@ describe("parseCliArgs", () => {
     expect(result.command).toBeUndefined();
   });
 
-  test("collects passthrough args after --", () => {
+  test("unknown flags pass through without needing --", () => {
     const result = parseCliArgs([
       "node", "script", "DEMO.md",
       "--command", "claude",
-      "--", "--model", "opus"
+      "--model", "opus"
     ]);
     expect(result.filePath).toBe("DEMO.md");
     expect(result.command).toBe("claude");
@@ -80,13 +81,12 @@ describe("parseCliArgs", () => {
     expect(result.passthroughArgs).toEqual([]);
   });
 
-  test("all args after -- are passthrough even if they look like known flags", () => {
+  test("single-dash flags pass through to command", () => {
     const result = parseCliArgs([
       "node", "script", "DEMO.md",
-      "--", "--command", "ignored"
+      "-p", "print mode"
     ]);
-    expect(result.command).toBeUndefined();
-    expect(result.passthroughArgs).toEqual(["--command", "ignored"]);
+    expect(result.passthroughArgs).toEqual(["-p", "print mode"]);
   });
 
   test("parses --verbose flag", () => {
@@ -94,9 +94,10 @@ describe("parseCliArgs", () => {
     expect(result.verbose).toBe(true);
   });
 
-  test("parses -v short flag", () => {
+  test("passes -v through to command (not ma's verbose)", () => {
     const result = parseCliArgs(["node", "script", "DEMO.md", "-v"]);
-    expect(result.verbose).toBe(true);
+    expect(result.verbose).toBe(false);
+    expect(result.passthroughArgs).toEqual(["-v"]);
   });
 
   test("verbose defaults to false", () => {

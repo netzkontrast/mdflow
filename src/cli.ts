@@ -1,5 +1,5 @@
 import type { AgentFrontmatter } from "./types";
-import { parseTemplateArgs, type TemplateVars } from "./template";
+import type { TemplateVars } from "./template";
 
 export interface CliArgs {
   filePath: string;
@@ -17,22 +17,22 @@ export interface CliArgs {
   setup: boolean;
 }
 
-/** Known CLI flags that shouldn't be treated as template variables */
-export const KNOWN_FLAGS = new Set([
+/** ma's own flags - everything else passes through to the command */
+const MA_FLAGS = new Set([
   "--command", "-c",
   "--help", "-h",
   "--dry-run",
   "--no-cache",
-  "--verbose", "-v",
+  "--verbose",
   "--logs",
   "--check",
   "--json",
   "--setup",
-  "--",  // Passthrough separator
 ]);
 
 /**
  * Parse CLI arguments
+ * ma only handles its own flags - all unknown flags pass through to the command
  */
 export function parseCliArgs(argv: string[]): CliArgs {
   const args = argv.slice(2);
@@ -44,7 +44,6 @@ export function parseCliArgs(argv: string[]): CliArgs {
   let dryRun = false;
   let verbose = false;
   let command: string | undefined;
-  let inPassthrough = false;
   let check = false;
   let json = false;
   let logs = false;
@@ -53,17 +52,6 @@ export function parseCliArgs(argv: string[]): CliArgs {
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     const nextArg = args[i + 1];
-
-    // After --, everything is passthrough
-    if (arg === "--") {
-      inPassthrough = true;
-      continue;
-    }
-
-    if (inPassthrough) {
-      passthroughArgs.push(arg);
-      continue;
-    }
 
     // Non-flag argument
     if (!arg.startsWith("-")) {
@@ -75,6 +63,19 @@ export function parseCliArgs(argv: string[]): CliArgs {
       continue;
     }
 
+    // Check if it's an ma flag
+    if (!MA_FLAGS.has(arg)) {
+      // Unknown flag - pass through to command
+      passthroughArgs.push(arg);
+      // If next arg exists and isn't a flag, it's the value
+      if (nextArg && !nextArg.startsWith("-")) {
+        passthroughArgs.push(nextArg);
+        i++;
+      }
+      continue;
+    }
+
+    // Handle ma's own flags
     switch (arg) {
       case "--command":
       case "-c":
@@ -99,7 +100,6 @@ export function parseCliArgs(argv: string[]): CliArgs {
         break;
 
       case "--verbose":
-      case "-v":
         verbose = true;
         break;
 
@@ -121,8 +121,8 @@ export function parseCliArgs(argv: string[]): CliArgs {
     }
   }
 
-  // Parse template variables from remaining args
-  const templateVars = parseTemplateArgs(args, KNOWN_FLAGS);
+  // Parse template variables from body content (not from CLI flags anymore)
+  const templateVars: TemplateVars = {};
 
   return {
     filePath,
@@ -153,26 +153,25 @@ export function mergeFrontmatter(
 
 function printHelp() {
   console.log(`
-Usage: ma <file.md> [text] [options] [-- passthrough-args]
+Usage: ma <file.md> [text] [options] [any-flags-for-command]
        ma --setup
 
 Arguments:
   file.md                 Markdown file to execute
   text                    Additional text appended to the prompt body
 
-Options:
+ma Options:
   --command, -c <cmd>     Command to execute (e.g., claude, codex, gemini)
   --no-cache              Skip cache and force fresh execution
   --dry-run               Show what would be executed without running
   --check                 Validate frontmatter without executing
   --json                  Output validation results as JSON (with --check)
-  --verbose, -v           Show debug info
+  --verbose               Show debug info
   --logs                  Show log directory (~/.markdown-agent/logs/)
   --setup                 Configure shell to run .md files directly
   --help, -h              Show this help
 
-Passthrough:
-  --                      Everything after -- is passed to the command
+All other flags are passed through to the command automatically.
 
 Command Resolution (in priority order):
   1. --command flag
@@ -187,8 +186,8 @@ Frontmatter:
 
 Examples:
   ma task.claude.md "focus on error handling"
-  ma task.md --command claude
+  ma task.claude.md -p "print mode prompt"
+  ma task.md --command claude --model opus
   ma commit.gemini.md --verbose
-  ma task.md -- --model opus
 `);
 }
