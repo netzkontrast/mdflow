@@ -1,3 +1,10 @@
+# [2.6.0](https://github.com/johnlindquist/markdown-agent/compare/v2.5.0...v2.6.0) (2025-12-07)
+
+
+### Features
+
+* add --command flag hijacking for generic markdown files ([24d2028](https://github.com/johnlindquist/markdown-agent/commit/24d2028f58ebec4cd41dfa64c33867741fd391dc))
+
 # [2.5.0](https://github.com/johnlindquist/markdown-agent/compare/v2.4.0...v2.5.0) (2025-12-07)
 
 
