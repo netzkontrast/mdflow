@@ -36,16 +36,6 @@ describe("validateFrontmatter", () => {
     })).toThrow("Select inputs require a non-empty choices array");
   });
 
-  test("validates context as string", () => {
-    const result = validateFrontmatter({ context: "src/**/*.ts" });
-    expect(result.context).toBe("src/**/*.ts");
-  });
-
-  test("validates context as array", () => {
-    const result = validateFrontmatter({ context: ["src/**/*.ts", "!**/*.test.ts"] });
-    expect(result.context).toEqual(["src/**/*.ts", "!**/*.test.ts"]);
-  });
-
   test("validates requires object", () => {
     const result = validateFrontmatter({
       requires: {

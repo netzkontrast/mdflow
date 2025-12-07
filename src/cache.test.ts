@@ -57,20 +57,6 @@ describe("generateCacheKey", () => {
     expect(key1).not.toBe(key2);
   });
 
-  test("includes context files in hash", () => {
-    const key1 = generateCacheKey({
-      frontmatter: {},
-      body: "Hello",
-      contextFiles: [{ path: "a.ts", content: "const x = 1;" }],
-    });
-    const key2 = generateCacheKey({
-      frontmatter: {},
-      body: "Hello",
-      contextFiles: [{ path: "a.ts", content: "const x = 2;" }],
-    });
-    expect(key1).not.toBe(key2);
-  });
-
   test("returns 16 character hex string", () => {
     const key = generateCacheKey({ frontmatter: {}, body: "test" });
     expect(key).toMatch(/^[a-f0-9]{16}$/);

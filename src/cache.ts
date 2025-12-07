@@ -1,6 +1,6 @@
 /**
  * Result caching for expensive LLM calls
- * Caches based on hash of inputs (frontmatter + prompt + context)
+ * Caches based on hash of inputs (frontmatter + prompt)
  */
 
 import { mkdir, readdir, stat, unlink } from "fs/promises";
@@ -18,20 +18,15 @@ export interface CacheEntry {
 }
 
 /**
- * Generate a hash from the prompt and context
+ * Generate a hash from the frontmatter and prompt body
  */
 export function generateCacheKey(components: {
   frontmatter: object;
   body: string;
-  contextFiles?: Array<{ path: string; content: string }>;
 }): string {
   const data = JSON.stringify({
     frontmatter: components.frontmatter,
     body: components.body,
-    context: components.contextFiles?.map(f => ({
-      path: f.path,
-      content: f.content,
-    })) || [],
   });
 
   return createHash("sha256").update(data).digest("hex").slice(0, 16);

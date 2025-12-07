@@ -10,7 +10,6 @@ import { basename } from "path";
 const SYSTEM_KEYS = new Set([
   "command",
   "inputs",
-  "context",
   "requires",
   "cache",
   "$1",  // Map first positional (body) to a flag

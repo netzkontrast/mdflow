@@ -86,7 +86,6 @@ describe("buildArgs", () => {
     const result = buildArgs({
       command: "claude",
       inputs: [],
-      context: "*.ts",
       requires: { bin: ["git"] },
       cache: true,
       "$1": "prompt",  // $1 is a system key
