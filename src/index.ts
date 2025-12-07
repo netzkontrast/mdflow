@@ -5,12 +5,11 @@ import { safeParseFrontmatter } from "./schema";
 import { substituteTemplateVars, extractTemplateVars } from "./template";
 import { promptInputs, validateInputField } from "./inputs";
 import { resolveContextGlobs, formatContextAsXml, getContextStats, type ContextFile } from "./context";
-import { extractOutput, isValidExtractMode, type ExtractMode } from "./extract";
 import { generateCacheKey, readCache, writeCache } from "./cache";
 import { validatePrerequisites, handlePrerequisiteFailure } from "./prerequisites";
 import { formatDryRun, type DryRunInfo } from "./dryrun";
 import { isRemoteUrl, fetchRemote, cleanupRemote, printRemoteWarning } from "./remote";
-import { resolveHarnessSync, type RunContext } from "./harnesses";
+import { resolveCommand, buildArgs, runCommand } from "./command";
 import { runBatch, formatBatchResults, parseBatchManifest } from "./batch";
 import { runSetup } from "./setup";
 import { offerRepair } from "./repair";
@@ -22,12 +21,10 @@ import { dirname, resolve } from "path";
  * Read stdin if it's being piped (not a TTY)
  */
 async function readStdin(): Promise<string> {
-  // Check if stdin is a TTY (interactive terminal)
   if (process.stdin.isTTY) {
     return "";
   }
 
-  // Read piped stdin
   const chunks: Buffer[] = [];
   for await (const chunk of process.stdin) {
     chunks.push(chunk);
@@ -36,7 +33,22 @@ async function readStdin(): Promise<string> {
 }
 
 async function main() {
-  const { filePath, overrides, appendText, templateVars, noCache, dryRun, verbose, harness: cliHarness, passthroughArgs, check, json, runBatch: runBatchMode, concurrency, setup } = parseCliArgs(process.argv);
+  const {
+    filePath,
+    overrides,
+    appendText,
+    templateVars,
+    noCache,
+    dryRun,
+    verbose,
+    command: cliCommand,
+    passthroughArgs,
+    check,
+    json,
+    runBatch: runBatchMode,
+    concurrency,
+    setup,
+  } = parseCliArgs(process.argv);
 
   // ---------------------------------------------------------
   // SETUP MODE
@@ -74,10 +86,8 @@ async function main() {
       verbose,
     });
 
-    // Output batch summary
     console.log(formatBatchResults(results));
 
-    // Summary of successful branches
     const branches = results
       .filter((r) => r.exitCode === 0 && r.branchName)
       .map((r) => r.branchName);
@@ -87,21 +97,18 @@ async function main() {
       console.error(`   git merge ${branches.join(" ")}`);
     }
 
-    // Exit with error if any job failed
     process.exit(results.some((r) => r.exitCode !== 0) ? 1 : 0);
   }
 
   if (!filePath) {
     console.error("Usage: <file.md> [text] [options]");
     console.error("Run with --help for more options");
-    console.error("Stdin can be piped to include in the prompt");
     process.exit(1);
   }
 
   // Handle remote URLs
   let localFilePath = filePath;
   let isRemote = false;
-  const originalUrl = filePath;
 
   if (isRemoteUrl(filePath)) {
     printRemoteWarning(filePath);
@@ -133,7 +140,6 @@ async function main() {
     try {
       rawResult = parseRawFrontmatter(content);
     } catch (err) {
-      // Handle YAML syntax errors
       const errorMsg = (err as Error).message;
       if (json) {
         console.log(JSON.stringify({
@@ -148,11 +154,9 @@ async function main() {
       process.exit(1);
     }
 
-    // Validate against schema
     const validation = safeParseFrontmatter(rawResult.frontmatter);
 
     if (json) {
-      // JSON output for piping to Doctor agent
       console.log(JSON.stringify({
         valid: validation.success,
         file: localFilePath,
@@ -160,7 +164,6 @@ async function main() {
         content,
       }, null, 2));
     } else {
-      // Human-readable output
       if (validation.success) {
         console.log(`✅ ${localFilePath} is valid`);
       } else {
@@ -185,12 +188,10 @@ async function main() {
     } catch (err) {
       const errorMessage = (err as Error).message;
 
-      // Extract validation errors for repair context
       const errors = errorMessage.includes("Invalid frontmatter:")
         ? errorMessage.replace("Invalid frontmatter:\n", "").split("\n").map(e => e.trim()).filter(Boolean)
         : [errorMessage];
 
-      // Offer interactive repair
       const shouldRetry = await offerRepair({
         filePath: resolve(localFilePath),
         content: currentContent,
@@ -198,12 +199,10 @@ async function main() {
       });
 
       if (!shouldRetry) {
-        // User declined repair or repair failed
         console.error(`\n${errorMessage}`);
         process.exit(1);
       }
 
-      // Re-read the file after repair
       currentContent = await Bun.file(localFilePath).text();
     }
   }
@@ -211,7 +210,6 @@ async function main() {
   // Handle wizard mode inputs
   let allTemplateVars = { ...templateVars };
   if (baseFrontmatter.inputs && Array.isArray(baseFrontmatter.inputs)) {
-    // Validate input fields
     const validatedInputs: InputField[] = [];
     for (let i = 0; i < baseFrontmatter.inputs.length; i++) {
       try {
@@ -223,16 +221,14 @@ async function main() {
       }
     }
 
-    // Prompt for inputs (skips those provided via CLI)
     try {
       allTemplateVars = await promptInputs(validatedInputs, templateVars);
     } catch (err) {
-      // User cancelled (Ctrl+C)
       process.exit(130);
     }
   }
 
-  // Expand @file imports and !`command` inlines in the body
+  // Expand @file imports and !`command` inlines
   const fileDir = dirname(resolve(localFilePath));
   let expandedBody = rawBody;
 
@@ -248,7 +244,7 @@ async function main() {
     }
   }
 
-  // Check for missing template variables (after prompts)
+  // Check for missing template variables
   const requiredVars = extractTemplateVars(expandedBody);
   const missingVars = requiredVars.filter(v => !(v in allTemplateVars));
   if (missingVars.length > 0) {
@@ -290,7 +286,7 @@ async function main() {
     }
   }
 
-  // Build final body with context, stdin, and appended text
+  // Build final prompt with context, stdin, and appended text
   let finalBody = body;
   if (contextXml) {
     finalBody = `${contextXml}\n\n${finalBody}`;
@@ -302,34 +298,44 @@ async function main() {
     finalBody = `${finalBody}\n\n${appendText}`;
   }
 
-  // Resolve which harness to use
-  const harness = resolveHarnessSync({ cliHarness, frontmatter });
+  // Resolve command
+  let command: string;
+  try {
+    command = resolveCommand({
+      cliCommand,
+      frontmatter,
+      filePath: localFilePath,
+    });
+  } catch (err) {
+    console.error((err as Error).message);
+    process.exit(1);
+  }
+
+  // Build CLI args from frontmatter (excluding template vars)
+  const templateVarSet = new Set(Object.keys(allTemplateVars));
+  const args = [
+    ...buildArgs(frontmatter, templateVarSet),
+    ...passthroughArgs,
+  ];
 
   // Verbose output
   if (verbose) {
-    console.error(`[verbose] Harness: ${harness.name}`);
-    console.error(`[verbose] Model: ${frontmatter.model || "(default)"}`);
+    console.error(`[verbose] Command: ${command}`);
     if (contextFiles.length > 0) {
       console.error(`[verbose] Context files: ${contextFiles.length}`);
     }
-    if (passthroughArgs.length > 0) {
-      console.error(`[verbose] Passthrough args: ${passthroughArgs.join(" ")}`);
+    if (args.length > 0) {
+      console.error(`[verbose] Args: ${args.join(" ")}`);
     }
   }
 
-  // Handle dry-run mode - show what would be executed without running
+  // Handle dry-run mode
   if (dryRun) {
-    const harnessArgs = harness.buildArgs({
-      prompt: finalBody,
-      frontmatter,
-      passthroughArgs,
-      captureOutput: false,
-    });
     const dryRunInfo: DryRunInfo = {
       frontmatter,
       prompt: finalBody,
-      harnessArgs,
-      harnessName: harness.name,
+      harnessArgs: args,
+      harnessName: command,
       contextFiles,
       beforeCommands: [],
       afterCommands: [],
@@ -337,31 +343,19 @@ async function main() {
     };
     console.log(formatDryRun(dryRunInfo));
 
-    // Cleanup remote file before exit
     if (isRemote) {
       await cleanupRemote(localFilePath);
     }
     process.exit(0);
   }
 
-  // Capture output if we have extract mode or caching
-  const hasExtract = frontmatter.extract && isValidExtractMode(frontmatter.extract);
+  // Caching
   const useCache = frontmatter.cache === true && !noCache;
-  const captureOutput = hasExtract || useCache;
-
-  // Build run context
-  const runContext: RunContext = {
-    prompt: finalBody,
-    frontmatter,
-    passthroughArgs,
-    captureOutput,
-  };
-
-  // Check cache first if enabled
-  let runResult: { exitCode: number; output: string };
   const cacheKey = useCache
     ? generateCacheKey({ frontmatter, body: finalBody, contextFiles })
     : null;
+
+  let runResult: { exitCode: number; output: string };
 
   if (cacheKey && !noCache) {
     const cachedOutput = await readCache(cacheKey);
@@ -372,31 +366,28 @@ async function main() {
     } else {
       if (verbose) console.error("[verbose] Cache: miss");
       if (verbose) {
-        const args = harness.buildArgs(runContext);
-        console.error(`[verbose] Command: ${harness.getCommand()} ${args.join(" ")}`);
+        console.error(`[verbose] Running: ${command} ${args.join(" ")}`);
       }
-      runResult = await harness.run(runContext);
-      // Write to cache on success
+      runResult = await runCommand({
+        command,
+        args,
+        prompt: finalBody,
+        captureOutput: useCache,
+      });
       if (runResult.exitCode === 0 && runResult.output) {
         await writeCache(cacheKey, runResult.output);
       }
     }
   } else {
     if (verbose) {
-      const args = harness.buildArgs(runContext);
-      console.error(`[verbose] Command: ${harness.getCommand()} ${args.join(" ")}`);
+      console.error(`[verbose] Running: ${command} ${args.join(" ")}`);
     }
-    runResult = await harness.run(runContext);
-  }
-
-  // Apply output extraction if specified
-  if (hasExtract && runResult.output) {
-    const extracted = extractOutput(runResult.output, frontmatter.extract as ExtractMode);
-    // Print extracted output (different from full output already shown by runner)
-    if (extracted !== runResult.output) {
-      console.log("\n--- Extracted output ---");
-      console.log(extracted);
-    }
+    runResult = await runCommand({
+      command,
+      args,
+      prompt: finalBody,
+      captureOutput: false,
+    });
   }
 
   // Cleanup remote temporary file
