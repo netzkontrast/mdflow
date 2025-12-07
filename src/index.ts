@@ -182,7 +182,6 @@ async function main() {
   }
 
   // Expand @file imports and !`command` inlines
-  const fileDir = dirname(resolve(localFilePath));
   let expandedBody = rawBody;
 
   if (hasImports(rawBody)) {
