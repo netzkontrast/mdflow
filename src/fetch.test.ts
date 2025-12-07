@@ -1,4 +1,8 @@
-import { describe, it, expect, mock, beforeEach, afterEach } from "bun:test";
+import { describe, it, expect, mock, beforeEach, afterEach, test } from "bun:test";
+
+// Skip network-dependent tests in CI environments to avoid flakiness
+const isCI = process.env.CI === "true";
+const describeNetwork = isCI ? describe.skip : describe;
 import {
   fetchWithTimeout,
   fetchWithRetry,
@@ -135,7 +139,7 @@ describe("fetch utilities", () => {
     });
   });
 
-  describe("fetchWithTimeout", () => {
+  describeNetwork("fetchWithTimeout", () => {
     it("successfully fetches when request completes before timeout", async () => {
       // Use a real endpoint that responds quickly
       const response = await fetchWithTimeout("https://httpbin.org/get", {
@@ -156,13 +160,15 @@ describe("fetch utilities", () => {
         expect((error as FetchTimeoutError).message).toContain("timed out after 100ms");
       }
     });
+  });
 
+  describe("fetchWithTimeout constants", () => {
     it("uses default timeout when not specified", () => {
       expect(DEFAULT_TIMEOUT_MS).toBe(10000);
     });
   });
 
-  describe("fetchWithRetry", () => {
+  describeNetwork("fetchWithRetry", () => {
     it("succeeds on first attempt for successful requests", async () => {
       const response = await fetchWithRetry("https://httpbin.org/get", {
         retry: { maxRetries: 3 },
@@ -183,7 +189,9 @@ describe("fetch utilities", () => {
       });
       expect(response.ok).toBe(true);
     });
+  });
 
+  describe("fetchWithRetry constants", () => {
     it("uses default retry config when not specified", () => {
       expect(DEFAULT_RETRY_CONFIG.maxRetries).toBe(3);
       expect(DEFAULT_RETRY_CONFIG.initialDelayMs).toBe(1000);
@@ -192,7 +200,7 @@ describe("fetch utilities", () => {
     });
   });
 
-  describe("resilientFetch", () => {
+  describeNetwork("resilientFetch", () => {
     it("successfully fetches with both timeout and retry protection", async () => {
       const response = await resilientFetch("https://httpbin.org/get", {
         timeoutMs: 10000,
@@ -254,7 +262,7 @@ describe("fetch utilities", () => {
     });
   });
 
-  describe("integration with markdown-agent use cases", () => {
+  describeNetwork("integration with markdown-agent use cases", () => {
     it("fetches GitHub raw content", async () => {
       // Test fetching a well-known, stable GitHub file
       const response = await resilientFetch(
