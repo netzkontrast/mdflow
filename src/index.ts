@@ -376,8 +376,22 @@ async function main() {
       console.log("DRY RUN - Command will NOT be executed");
       console.log("═══════════════════════════════════════════════════════════\n");
 
+      // Build final args with positional mappings applied (same as runCommand)
+      const finalArgs = [...args];
+      for (let i = 0; i < positionals.length; i++) {
+        const pos = i + 1;
+        const value = positionals[i];
+        if (positionalMappings.has(pos)) {
+          const flagName = positionalMappings.get(pos)!;
+          const flag = flagName.length === 1 ? `-${flagName}` : `--${flagName}`;
+          finalArgs.push(flag, `"${value.replace(/"/g, '\\"')}"`);
+        } else {
+          finalArgs.push(`"${value.replace(/"/g, '\\"')}"`);
+        }
+      }
+
       console.log("Command:");
-      console.log(`   ${command} ${args.join(" ")}\n`);
+      console.log(`   ${command} ${finalArgs.join(" ")}\n`);
 
       console.log("Final Prompt:");
       console.log("───────────────────────────────────────────────────────────");
