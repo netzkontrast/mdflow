@@ -1,3 +1,10 @@
+## [2.12.1](https://github.com/johnlindquist/markdown-agent/compare/v2.12.0...v2.12.1) (2025-12-08)
+
+
+### Bug Fixes
+
+* create command now generates empty agent files ([95fe448](https://github.com/johnlindquist/markdown-agent/commit/95fe448da49f4e420df4d0edbf64359f41581f26))
+
 # [2.12.0](https://github.com/johnlindquist/markdown-agent/compare/v2.11.0...v2.12.0) (2025-12-08)
 
 
