@@ -1,3 +1,10 @@
+# [2.11.0](https://github.com/johnlindquist/markdown-agent/compare/v2.10.0...v2.11.0) (2025-12-08)
+
+
+### Features
+
+* add PATH setup option to ma --setup command ([ed876cf](https://github.com/johnlindquist/markdown-agent/commit/ed876cf294870356053a0f473d363ebe4638bb4d))
+
 # [2.10.0](https://github.com/johnlindquist/markdown-agent/compare/v2.9.0...v2.10.0) (2025-12-08)
 
 
