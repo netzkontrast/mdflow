@@ -95,7 +95,7 @@ Commands are resolved in priority order:
 - `env` (object form): Sets process.env before execution
 - `$1`, `$2`, etc.: Map positional args to flags
 - `_interactive`: Enable interactive mode (overrides print-mode defaults)
-- `_subcommand`: Prepend subcommand(s) to CLI args (string or array)
+- `_subcommand`: Prepend subcommand(s) to CLI args (e.g., `_subcommand: exec`)
 
 **All other keys** are passed directly as CLI flags:
 
