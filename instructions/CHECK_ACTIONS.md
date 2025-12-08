@@ -1,5 +1,5 @@
 ---
-before: gh run list --limit 2
+pre: gh run list --limit 2
 model: claude-haiku-4.5
 silent: true
 allow-tool:

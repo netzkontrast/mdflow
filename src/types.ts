@@ -18,6 +18,32 @@ export interface AgentFrontmatter {
   context_window?: number;
 
   /**
+   * Lifecycle hook: Command to run before context building
+   * Output is prepended to the prompt body
+   * Alias: `before`
+   */
+  pre?: string;
+
+  /**
+   * Lifecycle hook: Alias for `pre`
+   * Command to run before context building, output prepended to prompt
+   */
+  before?: string;
+
+  /**
+   * Lifecycle hook: Command to run after execution completes
+   * Receives exit code via MA_EXIT_CODE env var
+   * Alias: `after`
+   */
+  post?: string;
+
+  /**
+   * Lifecycle hook: Alias for `post`
+   * Command to run after execution completes
+   */
+  after?: string;
+
+  /**
    * Positional argument mapping ($1, $2, etc.)
    * Maps positional arguments to CLI flags
    * Example: $1: prompt → body becomes --prompt <body>

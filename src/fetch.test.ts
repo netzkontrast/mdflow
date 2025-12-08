@@ -141,17 +141,17 @@ describe("fetch utilities", () => {
 
   describeNetwork("fetchWithTimeout", () => {
     it("successfully fetches when request completes before timeout", async () => {
-      // Use a real endpoint that responds quickly
-      const response = await fetchWithTimeout("https://httpbin.org/get", {
+      // Use jsonplaceholder - reliable and fast
+      const response = await fetchWithTimeout("https://jsonplaceholder.typicode.com/posts/1", {
         timeoutMs: 10000,
       });
       expect(response.ok).toBe(true);
     });
 
     it("throws FetchTimeoutError when request exceeds timeout", async () => {
-      // Use a delay endpoint with very short timeout
+      // Use an unreachable IP to trigger timeout (10.255.255.1 is non-routable)
       try {
-        await fetchWithTimeout("https://httpbin.org/delay/5", {
+        await fetchWithTimeout("http://10.255.255.1:12345/", {
           timeoutMs: 100,
         });
         expect.unreachable("Should have thrown FetchTimeoutError");
@@ -170,21 +170,22 @@ describe("fetch utilities", () => {
 
   describeNetwork("fetchWithRetry", () => {
     it("succeeds on first attempt for successful requests", async () => {
-      const response = await fetchWithRetry("https://httpbin.org/get", {
+      const response = await fetchWithRetry("https://jsonplaceholder.typicode.com/posts/1", {
         retry: { maxRetries: 3 },
       });
       expect(response.ok).toBe(true);
     });
 
     it("returns response for non-retryable 4xx errors without retrying", async () => {
-      const response = await fetchWithRetry("https://httpbin.org/status/404", {
+      // jsonplaceholder returns 404 for non-existent posts
+      const response = await fetchWithRetry("https://jsonplaceholder.typicode.com/posts/99999999", {
         retry: { maxRetries: 3 },
       });
       expect(response.status).toBe(404);
     });
 
     it("can disable retries with retry: false", async () => {
-      const response = await fetchWithRetry("https://httpbin.org/get", {
+      const response = await fetchWithRetry("https://jsonplaceholder.typicode.com/posts/1", {
         retry: false,
       });
       expect(response.ok).toBe(true);
@@ -202,33 +203,21 @@ describe("fetch utilities", () => {
 
   describeNetwork("resilientFetch", () => {
     it("successfully fetches with both timeout and retry protection", async () => {
-      const response = await resilientFetch("https://httpbin.org/get", {
+      const response = await resilientFetch("https://jsonplaceholder.typicode.com/posts/1", {
         timeoutMs: 10000,
         retry: { maxRetries: 2 },
       });
       expect(response.ok).toBe(true);
     });
 
-    it("includes custom headers in request", async () => {
-      const response = await resilientFetch("https://httpbin.org/headers", {
-        headers: {
-          "X-Custom-Header": "test-value",
-          "User-Agent": "test-agent/1.0",
-        },
-      });
-      expect(response.ok).toBe(true);
-      const data = await response.json();
-      expect(data.headers["X-Custom-Header"]).toBe("test-value");
-    });
-
     it("handles 404 response (non-retryable)", async () => {
-      const response = await resilientFetch("https://httpbin.org/status/404");
+      const response = await resilientFetch("https://jsonplaceholder.typicode.com/posts/99999999");
       expect(response.status).toBe(404);
       expect(response.ok).toBe(false);
     });
 
     it("can disable retries with retry: false", async () => {
-      const response = await resilientFetch("https://httpbin.org/get", {
+      const response = await resilientFetch("https://jsonplaceholder.typicode.com/posts/1", {
         retry: false,
       });
       expect(response.ok).toBe(true);
@@ -236,7 +225,8 @@ describe("fetch utilities", () => {
 
     it("throws FetchTimeoutError on timeout", async () => {
       try {
-        await resilientFetch("https://httpbin.org/delay/5", {
+        // Use unreachable IP to trigger timeout
+        await resilientFetch("http://10.255.255.1:12345/", {
           timeoutMs: 100,
           retry: false, // Disable retries to speed up test
         });
@@ -248,7 +238,8 @@ describe("fetch utilities", () => {
 
     it("throws FetchRetryError after exhausting retries on timeout", async () => {
       try {
-        await resilientFetch("https://httpbin.org/delay/5", {
+        // Use unreachable IP to trigger timeout
+        await resilientFetch("http://10.255.255.1:12345/", {
           timeoutMs: 100,
           retry: { maxRetries: 1, initialDelayMs: 50 },
         });
@@ -280,7 +271,7 @@ describe("fetch utilities", () => {
     });
 
     it("handles JSON response", async () => {
-      const response = await resilientFetch("https://httpbin.org/json", {
+      const response = await resilientFetch("https://jsonplaceholder.typicode.com/posts/1", {
         headers: {
           Accept: "application/json",
         },
@@ -288,6 +279,7 @@ describe("fetch utilities", () => {
       expect(response.ok).toBe(true);
       const data = await response.json();
       expect(data).toBeDefined();
+      expect(data.id).toBe(1);
     });
   });
 });

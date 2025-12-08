@@ -21,6 +21,42 @@ import type { AgentFrontmatter } from "./types";
 import type { RunResult } from "./command";
 
 /**
+ * Run a lifecycle hook command and capture its output
+ *
+ * @param command - Shell command to execute
+ * @param cwd - Working directory for the command
+ * @param env - Additional environment variables
+ * @returns The stdout output from the command
+ * @throws Error if the command fails (non-zero exit code)
+ */
+async function runHookCommand(
+  command: string,
+  cwd: string,
+  env?: Record<string, string>
+): Promise<string> {
+  const proc = Bun.spawn(["sh", "-c", command], {
+    cwd,
+    stdout: "pipe",
+    stderr: "pipe",
+    env: { ...process.env, ...env },
+  });
+
+  const [stdout, stderr] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+  ]);
+
+  const exitCode = await proc.exited;
+
+  if (exitCode !== 0) {
+    const errorMsg = stderr.trim() || `Command exited with code ${exitCode}`;
+    throw new Error(`Hook command failed: ${errorMsg}`);
+  }
+
+  return stdout;
+}
+
+/**
  * Result of the resolution phase
  */
 export interface ResolvedSource {
@@ -52,6 +88,10 @@ export interface AgentContext {
   directory: string;
   /** Environment variables from frontmatter */
   envVars?: Record<string, string>;
+  /** Output from pre/before hook (prepended to body) */
+  preHookOutput?: string;
+  /** Post/after hook command to run after execution */
+  postHookCommand?: string;
 }
 
 /**
@@ -214,6 +254,24 @@ export class AgentRuntime {
       }
     }
 
+    // Run pre/before lifecycle hook
+    const preCommand = frontmatter.pre || frontmatter.before;
+    let preHookOutput: string | undefined;
+
+    if (preCommand) {
+      getCommandLogger().debug({ preCommand }, "Running pre hook");
+      try {
+        preHookOutput = await runHookCommand(preCommand, resolved.directory, envVars);
+        getCommandLogger().debug({ outputLength: preHookOutput.length }, "Pre hook completed");
+      } catch (err) {
+        getCommandLogger().error({ error: (err as Error).message }, "Pre hook failed");
+        throw new Error(`Pre hook failed: ${(err as Error).message}`);
+      }
+    }
+
+    // Capture post/after hook command for later execution
+    const postHookCommand = frontmatter.post || frontmatter.after;
+
     return {
       frontmatter,
       rawBody,
@@ -221,6 +279,8 @@ export class AgentRuntime {
       command,
       directory: resolved.directory,
       envVars,
+      preHookOutput,
+      postHookCommand,
     };
   }
 
@@ -342,11 +402,17 @@ export class AgentRuntime {
     processed: ProcessedTemplate,
     options: RuntimeOptions = {}
   ): Promise<RunResult> {
-    const { command, envVars } = context;
+    const { command, envVars, preHookOutput } = context;
     const { body, args, positionalMappings } = processed;
 
-    // Build final prompt with stdin
+    // Build final prompt with stdin and pre-hook output
     let finalBody = body;
+
+    // Prepend pre-hook output if present
+    if (preHookOutput) {
+      finalBody = `${preHookOutput.trim()}\n\n${finalBody}`;
+    }
+
     if (options.stdinContent) {
       finalBody = `<stdin>\n${options.stdinContent}\n</stdin>\n\n${finalBody}`;
     }
@@ -392,9 +458,16 @@ export class AgentRuntime {
 
       // Handle dry-run mode
       if (options.dryRun) {
-        const finalBody = options.stdinContent
-          ? `<stdin>\n${options.stdinContent}\n</stdin>\n\n${processed.body}`
-          : processed.body;
+        let finalBody = processed.body;
+
+        // Prepend pre-hook output if present
+        if (context.preHookOutput) {
+          finalBody = `${context.preHookOutput.trim()}\n\n${finalBody}`;
+        }
+
+        if (options.stdinContent) {
+          finalBody = `<stdin>\n${options.stdinContent}\n</stdin>\n\n${finalBody}`;
+        }
 
         console.log("═══════════════════════════════════════════════════════════");
         console.log("DRY RUN - Command will NOT be executed");
@@ -422,6 +495,21 @@ export class AgentRuntime {
 
       // Phase 4: Execution
       const result = await this.execute(context, processed, options);
+
+      // Phase 5: Post hook (if configured)
+      if (context.postHookCommand) {
+        getCommandLogger().debug({ postCommand: context.postHookCommand }, "Running post hook");
+        try {
+          await runHookCommand(context.postHookCommand, context.directory, {
+            ...context.envVars,
+            MA_EXIT_CODE: String(result.exitCode),
+          });
+          getCommandLogger().debug("Post hook completed");
+        } catch (err) {
+          getCommandLogger().error({ error: (err as Error).message }, "Post hook failed");
+          // Post hook failures are logged but don't change the exit code
+        }
+      }
 
       await this.cleanup();
 

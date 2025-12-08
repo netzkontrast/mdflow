@@ -65,5 +65,4 @@ Description of what this instructions file does.
 
 ## Reference files for patterns:
 - SETUP_NPM_PUBLISHING.md - Interactive setup with user prompts and browser opening
-- CHECK_ACTIONS.md - Using `before:` to run commands and analyze output
-- DEMO.md - Using `before:` and `after:` hooks for pre/post processing
+- CHECK_ACTIONS.md - Using `pre:` to run commands and analyze output

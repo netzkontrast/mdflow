@@ -135,24 +135,23 @@ test("hasImports distinguishes emails from URL imports", () => {
 });
 
 test("expandImports fetches markdown URL", async () => {
-  // Use httpbin.org for testing - returns whatever we send
-  const content = "Docs: @https://httpbin.org/robots.txt";
+  // Use jsonplaceholder for testing - reliable API
+  const content = "Docs: @https://jsonplaceholder.typicode.com/posts/1";
   const result = await expandImports(content, testDir);
-  // httpbin.org/robots.txt returns a simple text file
   expect(result).toContain("Docs:");
   expect(result).not.toContain("@https://");
 });
 
 test("expandImports fetches JSON URL", async () => {
-  const content = "Data: @https://httpbin.org/json";
+  const content = "Data: @https://jsonplaceholder.typicode.com/users/1";
   const result = await expandImports(content, testDir);
   expect(result).toContain("Data:");
-  expect(result).toContain("slideshow"); // httpbin /json returns slideshow data
+  expect(result).toContain("Leanne Graham"); // jsonplaceholder user 1 name
   expect(result).not.toContain("@https://");
 });
 
 test("expandImports preserves emails while expanding URLs", async () => {
-  const content = "Contact: admin@example.com\nDocs: @https://httpbin.org/robots.txt";
+  const content = "Contact: admin@example.com\nDocs: @https://jsonplaceholder.typicode.com/posts/1";
   const result = await expandImports(content, testDir);
   expect(result).toContain("admin@example.com"); // Email preserved
   expect(result).not.toContain("@https://"); // URL expanded
