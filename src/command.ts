@@ -5,6 +5,7 @@
 
 import type { AgentFrontmatter } from "./types";
 import { basename } from "path";
+import { teeToStdoutAndCollect, teeToStderrAndCollect } from "./stream";
 
 /**
  * Module-level reference to the current child process
@@ -177,6 +178,14 @@ export function extractEnvVars(frontmatter: AgentFrontmatter): Record<string, st
   return undefined;
 }
 
+/**
+ * Output capture mode for runCommand
+ * - "none": Inherit stdout/stderr, no capture (streaming to terminal)
+ * - "capture": Pipe and buffer output, print after completion
+ * - "tee": Tee streams - simultaneous display and capture (best of both)
+ */
+export type CaptureMode = "none" | "capture" | "tee";
+
 export interface RunContext {
   /** The command to execute */
   command: string;
@@ -186,25 +195,58 @@ export interface RunContext {
   positionals: string[];
   /** Positional mappings ($1 → flag name) */
   positionalMappings: Map<number, string>;
-  /** Whether to capture output */
-  captureOutput: boolean;
+  /**
+   * Whether to capture output (legacy boolean) or capture mode
+   * - false / "none": inherit stdout, no capture
+   * - true / "capture": pipe and buffer, print after completion
+   * - "tee": stream to stdout while capturing (simultaneous display + capture)
+   */
+  captureOutput: boolean | CaptureMode;
   /** Environment variables to add */
   env?: Record<string, string>;
+  /**
+   * Whether to also capture stderr (only applies when captureOutput is enabled)
+   * Default: false (stderr goes to inherit)
+   */
+  captureStderr?: boolean;
 }
 
 export interface RunResult {
   exitCode: number;
+  /** Captured stdout content (empty string if not capturing) */
+  stdout: string;
+  /** Captured stderr content (empty string if not capturing stderr) */
+  stderr: string;
+  /**
+   * @deprecated Use `stdout` instead. Kept for backward compatibility.
+   */
   output: string;
   /** The subprocess reference for signal handling */
   process: ReturnType<typeof Bun.spawn>;
 }
 
 /**
+ * Normalize capture mode from boolean or string to CaptureMode
+ */
+function normalizeCaptureMode(mode: boolean | CaptureMode): CaptureMode {
+  if (mode === true) return "capture";
+  if (mode === false) return "none";
+  return mode;
+}
+
+/**
  * Execute command with positional arguments
  * Positionals are either passed as-is or mapped to flags via $N mappings
+ *
+ * Capture modes:
+ * - "none": Inherit stdout/stderr (streaming to terminal, no capture)
+ * - "capture": Pipe and buffer output, print after completion
+ * - "tee": Stream to stdout/stderr while capturing (simultaneous display + capture)
  */
 export async function runCommand(ctx: RunContext): Promise<RunResult> {
-  const { command, args, positionals, positionalMappings, captureOutput, env } = ctx;
+  const { command, args, positionals, positionalMappings, captureOutput, env, captureStderr = false } = ctx;
+
+  const mode = normalizeCaptureMode(captureOutput);
 
   // Pre-flight check: verify the command exists
   const binaryPath = Bun.which(command);
@@ -212,7 +254,8 @@ export async function runCommand(ctx: RunContext): Promise<RunResult> {
     console.error(`Command not found: '${command}'`);
     console.error(`This agent requires '${command}' to be installed and available in your PATH.`);
     console.error(`Please install it and try again.`);
-    return { exitCode: 127, output: "" };  // 127 = command not found
+    // Return empty process-like object for backward compatibility
+    return { exitCode: 127, stdout: "", stderr: "", output: "", process: null as unknown as ReturnType<typeof Bun.spawn> };
   }
 
   // Build final command args
@@ -238,9 +281,13 @@ export async function runCommand(ctx: RunContext): Promise<RunResult> {
     ? { ...process.env, ...env }
     : undefined;
 
+  // Determine stdout/stderr pipe config based on mode
+  const shouldPipeStdout = mode === "capture" || mode === "tee";
+  const shouldPipeStderr = (mode === "capture" || mode === "tee") && captureStderr;
+
   const proc = Bun.spawn([command, ...finalArgs], {
-    stdout: captureOutput ? "pipe" : "inherit",
-    stderr: "inherit",
+    stdout: shouldPipeStdout ? "pipe" : "inherit",
+    stderr: shouldPipeStderr ? "pipe" : "inherit",
     stdin: "inherit",
     env: runEnv,
   });
@@ -248,17 +295,57 @@ export async function runCommand(ctx: RunContext): Promise<RunResult> {
   // Store reference for signal handling
   currentChildProcess = proc;
 
-  let output = "";
-  if (captureOutput && proc.stdout) {
-    output = await new Response(proc.stdout).text();
-    // Still print to console so user sees it
-    console.log(output);
+  let stdout = "";
+  let stderr = "";
+
+  // Handle output based on mode
+  if (mode === "tee") {
+    // Tee mode: stream to console while capturing
+    const promises: Promise<void>[] = [];
+
+    if (proc.stdout) {
+      promises.push(
+        teeToStdoutAndCollect(proc.stdout).then((content) => {
+          stdout = content;
+        })
+      );
+    }
+
+    if (proc.stderr && shouldPipeStderr) {
+      promises.push(
+        teeToStderrAndCollect(proc.stderr).then((content) => {
+          stderr = content;
+        })
+      );
+    }
+
+    await Promise.all(promises);
+  } else if (mode === "capture") {
+    // Capture mode: buffer then print
+    if (proc.stdout) {
+      stdout = await new Response(proc.stdout).text();
+      // Still print to console so user sees it
+      console.log(stdout);
+    }
+
+    if (proc.stderr && shouldPipeStderr) {
+      stderr = await new Response(proc.stderr).text();
+      // Print stderr to console
+      console.error(stderr);
+    }
   }
+  // mode === "none": stdout/stderr are inherited, nothing to capture
 
   const exitCode = await proc.exited;
 
   // Clear reference after process exits
   currentChildProcess = null;
 
-  return { exitCode, output, process: proc };
+  return {
+    exitCode,
+    stdout,
+    stderr,
+    output: stdout, // backward compatibility
+    process: proc,
+  };
 }

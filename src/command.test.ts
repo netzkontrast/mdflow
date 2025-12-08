@@ -1,5 +1,5 @@
 import { expect, test, describe } from "bun:test";
-import { parseCommandFromFilename, resolveCommand, buildArgs, extractPositionalMappings, extractEnvVars, getCurrentChildProcess, killCurrentChildProcess, runCommand } from "./command";
+import { parseCommandFromFilename, resolveCommand, buildArgs, extractPositionalMappings, extractEnvVars, getCurrentChildProcess, killCurrentChildProcess, runCommand, type CaptureMode } from "./command";
 
 describe("parseCommandFromFilename", () => {
   test("extracts command from filename pattern", () => {
@@ -230,5 +230,122 @@ describe("child process management for signal handling", () => {
     // Process should have been terminated (exit code will be non-zero on signal)
     // On Unix, killed processes typically exit with 128 + signal number, or negative
     expect(result.exitCode).not.toBe(0);
+  });
+});
+
+describe("runCommand capture modes", () => {
+  test("capture mode 'none' (false) does not capture output", async () => {
+    const result = await runCommand({
+      command: "echo",
+      args: ["silent"],
+      positionals: [],
+      positionalMappings: new Map(),
+      captureOutput: false,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe("");
+    expect(result.output).toBe(""); // backward compat
+  });
+
+  test("capture mode 'capture' (true) buffers and returns output", async () => {
+    const result = await runCommand({
+      command: "echo",
+      args: ["captured"],
+      positionals: [],
+      positionalMappings: new Map(),
+      captureOutput: true,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.trim()).toBe("captured");
+    expect(result.output.trim()).toBe("captured"); // backward compat
+  });
+
+  test("capture mode 'tee' streams and captures simultaneously", async () => {
+    const result = await runCommand({
+      command: "echo",
+      args: ["tee-test"],
+      positionals: [],
+      positionalMappings: new Map(),
+      captureOutput: "tee" as CaptureMode,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.trim()).toBe("tee-test");
+    expect(result.output.trim()).toBe("tee-test"); // backward compat
+  });
+
+  test("capture mode 'none' string equivalent to false", async () => {
+    const result = await runCommand({
+      command: "echo",
+      args: ["none-mode"],
+      positionals: [],
+      positionalMappings: new Map(),
+      captureOutput: "none" as CaptureMode,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe("");
+  });
+
+  test("captureStderr captures stderr when enabled", async () => {
+    // Use a shell command that writes to stderr
+    const result = await runCommand({
+      command: "sh",
+      args: ["-c", "echo 'stdout line' && echo 'stderr line' >&2"],
+      positionals: [],
+      positionalMappings: new Map(),
+      captureOutput: "tee" as CaptureMode,
+      captureStderr: true,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.trim()).toBe("stdout line");
+    expect(result.stderr.trim()).toBe("stderr line");
+  });
+
+  test("captureStderr false keeps stderr on inherit", async () => {
+    const result = await runCommand({
+      command: "sh",
+      args: ["-c", "echo 'stdout line' && echo 'stderr line' >&2"],
+      positionals: [],
+      positionalMappings: new Map(),
+      captureOutput: "tee" as CaptureMode,
+      captureStderr: false,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.trim()).toBe("stdout line");
+    expect(result.stderr).toBe(""); // not captured
+  });
+
+  test("tee mode handles multi-line output correctly", async () => {
+    const result = await runCommand({
+      command: "sh",
+      args: ["-c", "echo 'line1' && echo 'line2' && echo 'line3'"],
+      positionals: [],
+      positionalMappings: new Map(),
+      captureOutput: "tee" as CaptureMode,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("line1");
+    expect(result.stdout).toContain("line2");
+    expect(result.stdout).toContain("line3");
+  });
+
+  test("tee mode preserves exit code on command failure", async () => {
+    const result = await runCommand({
+      command: "sh",
+      args: ["-c", "echo 'before exit' && exit 42"],
+      positionals: [],
+      positionalMappings: new Map(),
+      captureOutput: "tee" as CaptureMode,
+    });
+
+    expect(result.exitCode).toBe(42);
+    expect(result.stdout.trim()).toBe("before exit");
   });
 });
