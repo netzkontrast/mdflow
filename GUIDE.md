@@ -282,3 +282,321 @@ Output ONLY the raw bash script.
 # 2. We pipe the script to sh to execute the swarm immediately
 ma 10-architect.claude.md "Build a login page with a fastify backend" | sh
 ```
+
+---
+
+# Part 2: The UX Tour
+
+While Part 1 focused on power and complexity, Part 2 focuses on **User Experience (UX)**. These examples demonstrate features designed to make working with AI agents safe, interactive, and easy to understand for your team.
+
+---
+
+## 11. The Interactive Wizard
+
+**Concept:** *Variable Recovery*
+**UX Problem:** You wrote a prompt with variables, but you don't want to memorize the argument order.
+**Solution:** If you forget to provide variables, `ma` detects them and turns the CLI into an interactive form.
+
+**File:** `11-onboarding.claude.md`
+
+```markdown
+---
+model: sonnet
+---
+Welcome to the team, {{ name }}!
+
+Please generate a warm onboarding email for a new engineer joining the {{ department }} team.
+Mention that their manager is {{ manager }}.
+```
+
+**Run it (without arguments):**
+
+```bash
+ma 11-onboarding.claude.md
+```
+
+**`ma` responds:**
+
+```text
+Missing required variables. Please provide values:
+? name: Alice
+? department: Platform
+? manager: Bob
+```
+
+*UX Benefit: Turns static scripts into interactive tools automatically.*
+
+---
+
+## 12. The Safety Net (Dry Run)
+
+**Concept:** *Trust & Verification*
+**UX Problem:** You are about to run an agent on your entire codebase, but you're nervous about token costs or context size.
+**Solution:** Use `--dry-run` to see exactly what *would* happen—the command, the expanded files, and the token count—without executing anything.
+
+**File:** `12-refactor.gemini.md`
+
+```markdown
+---
+model: gemini-1.5-pro
+---
+Refactor every file in this directory:
+@./src/**/*.ts
+```
+
+**Run it:**
+
+```bash
+ma 12-refactor.gemini.md --dry-run
+```
+
+**Output:**
+
+```text
+DRY RUN - Command will NOT be executed
+Command: gemini --model gemini-1.5-pro ...
+Final Prompt: (Shows full expanded content of all files)
+Estimated tokens: ~15,420
+```
+
+*UX Benefit: Verify expensive operations before spending money.*
+
+---
+
+## 13. The Native Binary
+
+**Concept:** *Shebang Support*
+**UX Problem:** Typing `ma filename.md` feels like running a script. You want it to feel like a native system command.
+**Solution:** Add a standard Unix shebang line.
+
+**File:** `daily-report` (no extension needed)
+
+```markdown
+#!/usr/bin/env ma
+---
+command: claude
+model: haiku
+---
+Generate a "Daily Standup" update based on my git activity:
+!`git log --since="24 hours ago" --oneline`
+```
+
+**Run it:**
+
+```bash
+chmod +x daily-report
+./daily-report
+```
+
+*UX Benefit: Abstracts away the tool entirely. It just behaves like a binary.*
+
+---
+
+## 14. The "Knobs & Dials" Interface
+
+**Concept:** *Hijacked Configuration ($vars)*
+**UX Problem:** You want to expose configuration settings (defaults) that users can easily override via flags.
+**Solution:** Variables starting with `$` in the frontmatter define defaults that are "hijacked" (consumed) by the template system.
+
+**File:** `14-translator.gpt.md`
+
+```markdown
+---
+command: openai
+model: gpt-4o
+# Default configuration
+$lang: Spanish
+$tone: Professional
+---
+Translate the following text into {{ lang }}. Keep the tone {{ tone }}.
+
+<text>
+{{ $1 }}
+</text>
+```
+
+**Run it:**
+
+```bash
+# Use defaults
+ma 14-translator.gpt.md "Hello World"
+
+# Tweak the knobs via flags
+ma 14-translator.gpt.md "Hello World" --lang "Pirate" --tone "Aggressive"
+```
+
+*UX Benefit: Creates a stable CLI interface for your prompts.*
+
+---
+
+## 15. The Context Surgeon
+
+**Concept:** *Symbol Extraction*
+**UX Problem:** Importing entire files is wasteful and distracting when you only need one specific interface.
+**Solution:** Use the `#Symbol` syntax to extract specific code blocks (Functions, Classes, Interfaces).
+
+**File:** `15-test-gen.claude.md`
+
+```markdown
+---
+model: sonnet
+---
+Write a unit test for this specific function:
+
+@./src/utils.ts#calculateTax
+
+Ensure it returns a type matching:
+
+@./src/types.ts#TaxResult
+```
+
+*UX Benefit: Precision context reduces hallucinations and token costs.*
+
+---
+
+## 16. The "Context Pack"
+
+**Concept:** *Recursive Imports*
+**UX Problem:** You constantly have to import the same 5 files (auth, database, types) for every task.
+**Solution:** Create a "Context Pack"—a markdown file that just imports other files—and import *that*.
+
+**File:** `_context-auth.md`
+
+```markdown
+# Auth System Context
+@./src/auth/session.ts
+@./src/auth/types.ts
+@./src/auth/login.ts
+```
+
+**File:** `16-security-audit.claude.md`
+
+```markdown
+---
+model: opus
+---
+Review the authentication flow for security holes.
+@./_context-auth.md
+```
+
+*UX Benefit: Build a library of "mental models" that are easy to drop into any agent.*
+
+---
+
+## 17. The Secret Keeper
+
+**Concept:** *Environment Isolation*
+**UX Problem:** You need API keys in your prompts but can't commit them to Git.
+**Solution:** `ma` automatically loads `.env` files from the markdown file's directory.
+
+**Structure:**
+
+```text
+/my-agents/
+  ├── .env          (Contains: API_URL=https://api.staging.com)
+  └── 17-api-check.claude.md
+```
+
+**File:** `17-api-check.claude.md`
+
+```markdown
+---
+model: sonnet
+---
+Write a curl command to check the health of:
+!`echo $API_URL`
+```
+
+*UX Benefit: Safe, zero-config secret management that works with Git.*
+
+---
+
+## 18. The Chameleon (Polymorphism)
+
+**Concept:** *Command Override*
+**UX Problem:** You want to A/B test a prompt against different models without creating multiple files.
+**Solution:** Override the inferred command using the `-c` flag.
+
+**File:** `18-story.md` (No command in filename)
+
+```markdown
+Write a two-sentence horror story about a compiler.
+```
+
+**Run it:**
+
+```bash
+# Test with Claude
+ma 18-story.md -c claude --model haiku
+
+# Test with Gemini
+ma 18-story.md -c gemini --model gemini-1.5-flash
+```
+
+*UX Benefit: Decouple your prompt logic from specific providers.*
+
+---
+
+## 19. The Black Box Recorder
+
+**Concept:** *Structured Logging*
+**UX Problem:** An agent hallucinated or failed, and you need to see exactly what was sent to the API.
+**Solution:** `ma` logs every execution to `~/.markdown-agent/logs/`.
+
+**File:** `19-mystery.claude.md`
+
+```markdown
+---
+model: opus
+---
+(Some complex prompt with dynamic imports...)
+```
+
+**Run it:**
+
+```bash
+ma 19-mystery.claude.md
+```
+
+**Debug it:**
+
+```bash
+ma --logs
+# Agent logs:
+#   /Users/me/.markdown-agent/logs/19-mystery-claude/
+```
+
+*UX Benefit: Instant forensic debugging without cluttering your terminal.*
+
+---
+
+## 20. The "Meta" Agent
+
+**Concept:** *Self-Replication*
+**UX Problem:** Creating new agents takes time.
+**Solution:** Use an agent to write your agents.
+
+**File:** `20-agent-smith.claude.md`
+
+```markdown
+---
+args: [goal]
+model: sonnet
+---
+I want to create a new markdown-agent file.
+Goal: {{ goal }}
+
+Write the full content of a `.md` file that accomplishes this.
+Include appropriate frontmatter defaults (model, args).
+Use standard `ma` features like `@imports` if the goal implies reading code.
+
+Output ONLY the raw markdown code block.
+```
+
+**Run it:**
+
+```bash
+ma 20-agent-smith.claude.md "Review my rust code" > review-rust.claude.md
+```
+
+*UX Benefit: The tool helps you build the tool.*

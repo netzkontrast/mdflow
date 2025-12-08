@@ -65,4 +65,4 @@ Description of what this instructions file does.
 
 ## Reference files for patterns:
 - SETUP_NPM_PUBLISHING.md - Interactive setup with user prompts and browser opening
-- CHECK_ACTIONS.md - Using `pre:` to run commands and analyze output
+- CHECK_ACTIONS.md - Interactive CI status checking

@@ -21,8 +21,6 @@ DEMO.md
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `pre` | string | Command to run first, output prepended to prompt (alias: `before`) |
-| `post` | string | Command to run after execution (alias: `after`) |
 | `model` | enum | AI model (claude-haiku-4.5, claude-opus-4.5, gpt-5, etc.) |
 | `agent` | string | Custom agent name |
 | `silent` | bool | Only output response, no stats |

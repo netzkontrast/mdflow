@@ -82,8 +82,6 @@ Commands are resolved in priority order:
 - `args`: Named positional arguments for template vars
 - `env` (object form): Sets process.env before execution
 - `$1`, `$2`, etc.: Map positional args to flags
-- `pre`/`before`: Command to run first, output prepended to prompt
-- `post`/`after`: Command to run after execution (receives MA_EXIT_CODE env var)
 
 **All other keys** are passed directly as CLI flags:
 

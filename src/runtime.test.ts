@@ -144,106 +144,6 @@ Hello`);
       expect(context.frontmatter).toEqual({});
       expect(context.rawBody).toBe("Just body");
     });
-
-    it("runs pre hook and captures output", async () => {
-      const filePath = join(tempDir, "prehook.claude.md");
-      await writeFile(filePath, `---
-pre: echo "pre-hook output"
----
-Body content`);
-
-      const runtime = createRuntime();
-      const resolved = await runtime.resolve(filePath);
-      const context = await runtime.buildContext(resolved);
-
-      expect(context.preHookOutput).toBe("pre-hook output\n");
-    });
-
-    it("runs before hook (alias for pre)", async () => {
-      const filePath = join(tempDir, "beforehook.claude.md");
-      await writeFile(filePath, `---
-before: echo "before-hook output"
----
-Body content`);
-
-      const runtime = createRuntime();
-      const resolved = await runtime.resolve(filePath);
-      const context = await runtime.buildContext(resolved);
-
-      expect(context.preHookOutput).toBe("before-hook output\n");
-    });
-
-    it("pre hook takes precedence over before", async () => {
-      const filePath = join(tempDir, "prebefore.claude.md");
-      await writeFile(filePath, `---
-pre: echo "pre wins"
-before: echo "before loses"
----
-Body content`);
-
-      const runtime = createRuntime();
-      const resolved = await runtime.resolve(filePath);
-      const context = await runtime.buildContext(resolved);
-
-      expect(context.preHookOutput).toBe("pre wins\n");
-    });
-
-    it("throws error when pre hook fails", async () => {
-      const filePath = join(tempDir, "badhook.claude.md");
-      await writeFile(filePath, `---
-pre: exit 1
----
-Body content`);
-
-      const runtime = createRuntime();
-      const resolved = await runtime.resolve(filePath);
-
-      await expect(runtime.buildContext(resolved)).rejects.toThrow("Pre hook failed");
-    });
-
-    it("captures post hook command for later", async () => {
-      const filePath = join(tempDir, "posthook.claude.md");
-      await writeFile(filePath, `---
-post: echo "done"
----
-Body content`);
-
-      const runtime = createRuntime();
-      const resolved = await runtime.resolve(filePath);
-      const context = await runtime.buildContext(resolved);
-
-      expect(context.postHookCommand).toBe("echo \"done\"");
-    });
-
-    it("after hook is alias for post", async () => {
-      const filePath = join(tempDir, "afterhook.claude.md");
-      await writeFile(filePath, `---
-after: echo "after done"
----
-Body content`);
-
-      const runtime = createRuntime();
-      const resolved = await runtime.resolve(filePath);
-      const context = await runtime.buildContext(resolved);
-
-      expect(context.postHookCommand).toBe("echo \"after done\"");
-    });
-
-    it("pre hook uses env vars from frontmatter", async () => {
-      const filePath = join(tempDir, "hookenv.claude.md");
-      await writeFile(filePath, `---
-env:
-  MY_VAR: hello
-pre: echo "$MY_VAR world"
----
-Body`);
-
-      const runtime = createRuntime();
-      const resolved = await runtime.resolve(filePath);
-      const context = await runtime.buildContext(resolved);
-
-      expect(context.preHookOutput).toBe("hello world\n");
-    });
   });
 
   describe("Template Phase", () => {
@@ -424,30 +324,6 @@ Test prompt`);
 
       // Cleanup should not throw for local files
       await expect(runtime.cleanup()).resolves.toBeUndefined();
-    });
-
-    it("prepends pre hook output to body in dry run", async () => {
-      const filePath = join(tempDir, "preoutput.claude.md");
-      await writeFile(filePath, `---
-pre: echo "HOOK OUTPUT"
----
-Body content`);
-
-      const runtime = createRuntime();
-      const resolved = await runtime.resolve(filePath);
-      const context = await runtime.buildContext(resolved);
-      const processed = await runtime.processTemplate(context);
-
-      // Verify pre-hook output is captured
-      expect(context.preHookOutput).toBe("HOOK OUTPUT\n");
-
-      // Simulate what execute does with pre-hook output
-      let finalBody = processed.body;
-      if (context.preHookOutput) {
-        finalBody = `${context.preHookOutput.trim()}\n\n${finalBody}`;
-      }
-
-      expect(finalBody).toBe("HOOK OUTPUT\n\nBody content");
     });
   });
 
