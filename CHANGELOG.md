@@ -1,3 +1,20 @@
+# [2.8.0](https://github.com/johnlindquist/markdown-agent/compare/v2.7.0...v2.8.0) (2025-12-08)
+
+
+### Bug Fixes
+
+* add missing gpt-tokenizer dependency ([f5a680e](https://github.com/johnlindquist/markdown-agent/commit/f5a680e27f47e3d821af82521f9da27e01dd8f31))
+* replace httpbin.org with jsonplaceholder.typicode.com ([d19c822](https://github.com/johnlindquist/markdown-agent/commit/d19c8221d7dfe3fc8bc95ba96280438304db9eca))
+
+
+### Features
+
+* add .ma/ agent discovery for user and project levels ([e99c2f1](https://github.com/johnlindquist/markdown-agent/commit/e99c2f18906944921c68b776ee6d3cfc1522dae7))
+* add project-level configuration support ([5639260](https://github.com/johnlindquist/markdown-agent/commit/5639260209fc3611793547b949456ce0ea85de70))
+* add Trust on First Use (TOFU) security for remote URL execution ([82204cb](https://github.com/johnlindquist/markdown-agent/commit/82204cb02413b0034b99e2a270eef45e9b5610bb))
+* implement output stream teeing for simultaneous display and capture ([e5a9fef](https://github.com/johnlindquist/markdown-agent/commit/e5a9fef00dd7871b5d9ff96840543c5e12d17cfc))
+* replace length/4 token heuristic with real tokenization ([bfef712](https://github.com/johnlindquist/markdown-agent/commit/bfef7127343df7be92823d9fcc5da48558f03ce7))
+
 # [2.7.0](https://github.com/johnlindquist/markdown-agent/compare/v2.6.0...v2.7.0) (2025-12-07)
 
 
