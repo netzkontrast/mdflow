@@ -11,6 +11,7 @@ import { initLogger, getParseLogger, getTemplateLogger, getCommandLogger, getImp
 import { dirname, resolve } from "path";
 import { input } from "@inquirer/prompts";
 import { MAX_INPUT_SIZE, StdinSizeLimitError, exceedsLimit } from "./limits";
+import { countTokens } from "./tokenizer";
 
 /**
  * Print error message with log path pointer to stderr
@@ -327,7 +328,7 @@ async function main() {
       console.log(finalBody);
       console.log("───────────────────────────────────────────────────────────\n");
 
-      const estimatedTokens = Math.ceil(finalBody.length / 4);
+      const estimatedTokens = countTokens(finalBody);
       console.log(`Estimated tokens: ~${estimatedTokens.toLocaleString()}`);
 
       // Cleanup remote temporary file if needed
