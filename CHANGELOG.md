@@ -1,3 +1,10 @@
+# [2.12.0](https://github.com/johnlindquist/markdown-agent/compare/v2.11.0...v2.12.0) (2025-12-08)
+
+
+### Features
+
+* add CLI subcommands (create, setup, logs, help) ([96daa68](https://github.com/johnlindquist/markdown-agent/commit/96daa6840b29d0438261381355465b4f21b671c1))
+
 # [2.11.0](https://github.com/johnlindquist/markdown-agent/compare/v2.10.0...v2.11.0) (2025-12-08)
 
 
