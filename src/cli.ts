@@ -1,7 +1,8 @@
 import { select } from "@inquirer/prompts";
 import { Glob } from "bun";
-import { basename } from "path";
+import { basename, join } from "path";
 import { realpathSync } from "fs";
+import { homedir } from "os";
 
 export interface CliArgs {
   filePath: string;
@@ -87,6 +88,13 @@ Command resolution:
   1. --command flag (e.g., ma task.md --command claude)
   2. Filename pattern (e.g., task.claude.md → claude)
 
+Agent file discovery (in priority order):
+  1. Explicit path:      ma ./path/to/agent.md
+  2. Current directory:  ./
+  3. Project agents:     ./.ma/
+  4. User agents:        ~/.ma/
+  5. $PATH directories
+
 All frontmatter keys are passed as CLI flags to the command.
 Global defaults can be set in ~/.markdown-agent/config.yaml
 
@@ -116,9 +124,10 @@ ma-specific flags (consumed, not passed to command):
   --trust         Skip trust prompt for remote URLs (TOFU bypass)
 
 Without a file:
-  ma --setup    Configure shell to run .md files directly
-  ma --logs     Show log directory
-  ma --help     Show this help
+  ma             Interactive agent picker (from ./.ma/, ~/.ma/, etc.)
+  ma --setup     Configure shell to run .md files directly
+  ma --logs      Show log directory
+  ma --help      Show this help
 `);
 }
 
@@ -135,9 +144,20 @@ function normalizePath(filePath: string): string {
   }
 }
 
+/** Project-level agent directory */
+const PROJECT_AGENTS_DIR = ".ma";
+
+/** User-level agent directory */
+const USER_AGENTS_DIR = join(homedir(), ".ma");
+
 /**
- * Find agent markdown files from current directory and $PATH
- * Returns files sorted by source (cwd first, then PATH directories)
+ * Find agent markdown files with priority order:
+ * 1. Current directory (cwd)
+ * 2. Project-level: ./.ma/
+ * 3. User-level: ~/.ma/
+ * 4. $PATH directories
+ *
+ * Returns files sorted by source priority (earlier sources take precedence)
  */
 export async function findAgentFiles(): Promise<AgentFile[]> {
   const files: AgentFile[] = [];
@@ -158,7 +178,34 @@ export async function findAgentFiles(): Promise<AgentFile[]> {
     // Skip if cwd is not accessible
   }
 
-  // 2. $PATH directories
+  // 2. Project-level: ./.ma/
+  const projectAgentsPath = join(process.cwd(), PROJECT_AGENTS_DIR);
+  try {
+    for await (const file of glob.scan({ cwd: projectAgentsPath, absolute: true })) {
+      const normalizedPath = normalizePath(file);
+      if (!seenPaths.has(normalizedPath)) {
+        seenPaths.add(normalizedPath);
+        files.push({ name: basename(file), path: normalizedPath, source: ".ma" });
+      }
+    }
+  } catch {
+    // Skip if .ma/ doesn't exist
+  }
+
+  // 3. User-level: ~/.ma/
+  try {
+    for await (const file of glob.scan({ cwd: USER_AGENTS_DIR, absolute: true })) {
+      const normalizedPath = normalizePath(file);
+      if (!seenPaths.has(normalizedPath)) {
+        seenPaths.add(normalizedPath);
+        files.push({ name: basename(file), path: normalizedPath, source: "~/.ma" });
+      }
+    }
+  } catch {
+    // Skip if ~/.ma/ doesn't exist
+  }
+
+  // 4. $PATH directories
   const pathDirs = (process.env.PATH || "").split(":");
   for (const dir of pathDirs) {
     if (!dir) continue;
@@ -176,6 +223,20 @@ export async function findAgentFiles(): Promise<AgentFile[]> {
   }
 
   return files;
+}
+
+/**
+ * Get the project agents directory path
+ */
+export function getProjectAgentsDir(): string {
+  return join(process.cwd(), PROJECT_AGENTS_DIR);
+}
+
+/**
+ * Get the user agents directory path
+ */
+export function getUserAgentsDir(): string {
+  return USER_AGENTS_DIR;
 }
 
 /**

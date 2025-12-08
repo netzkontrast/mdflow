@@ -1,5 +1,8 @@
-import { expect, test, describe } from "bun:test";
-import { parseCliArgs } from "./cli";
+import { expect, test, describe, beforeEach, afterEach } from "bun:test";
+import { parseCliArgs, findAgentFiles, getProjectAgentsDir, getUserAgentsDir } from "./cli";
+import { mkdirSync, writeFileSync, rmSync, existsSync } from "fs";
+import { join } from "path";
+import { homedir } from "os";
 
 describe("parseCliArgs", () => {
   test("extracts file path", () => {
@@ -43,5 +46,84 @@ describe("parseCliArgs", () => {
     expect(result.help).toBe(false);
     expect(result.setup).toBe(false);
     expect(result.passthroughArgs).toEqual(["--help", "--setup"]);
+  });
+});
+
+describe("agent directory paths", () => {
+  test("getProjectAgentsDir returns .ma in cwd", () => {
+    const dir = getProjectAgentsDir();
+    expect(dir).toBe(join(process.cwd(), ".ma"));
+  });
+
+  test("getUserAgentsDir returns ~/.ma", () => {
+    const dir = getUserAgentsDir();
+    expect(dir).toBe(join(homedir(), ".ma"));
+  });
+});
+
+describe("findAgentFiles", () => {
+  const testProjectMaDir = join(process.cwd(), ".ma-test");
+  const testUserMaDir = join(homedir(), ".ma-test-user");
+
+  beforeEach(() => {
+    // Create test directories
+    if (!existsSync(testProjectMaDir)) {
+      mkdirSync(testProjectMaDir, { recursive: true });
+    }
+  });
+
+  afterEach(() => {
+    // Cleanup test directories
+    if (existsSync(testProjectMaDir)) {
+      rmSync(testProjectMaDir, { recursive: true, force: true });
+    }
+  });
+
+  test("finds files from current directory", async () => {
+    const files = await findAgentFiles();
+    // Should find .md files in cwd (like CLAUDE.md, README.md, etc.)
+    const cwdFiles = files.filter(f => f.source === "cwd");
+    expect(cwdFiles.length).toBeGreaterThan(0);
+  });
+
+  test("finds files from .ma/ directory when present", async () => {
+    // Create a test .ma directory with a file
+    const maDir = join(process.cwd(), ".ma");
+    const testFile = join(maDir, "test-agent.claude.md");
+
+    try {
+      mkdirSync(maDir, { recursive: true });
+      writeFileSync(testFile, "---\nmodel: opus\n---\nTest agent");
+
+      const files = await findAgentFiles();
+      const maFiles = files.filter(f => f.source === ".ma");
+
+      expect(maFiles.length).toBeGreaterThan(0);
+      expect(maFiles.some(f => f.name === "test-agent.claude.md")).toBe(true);
+    } finally {
+      // Cleanup
+      if (existsSync(testFile)) rmSync(testFile);
+      if (existsSync(maDir)) rmSync(maDir, { recursive: true, force: true });
+    }
+  });
+
+  test("deduplicates files by normalized path", async () => {
+    const files = await findAgentFiles();
+    const paths = files.map(f => f.path);
+    const uniquePaths = new Set(paths);
+    expect(paths.length).toBe(uniquePaths.size);
+  });
+
+  test("returns files with correct structure", async () => {
+    const files = await findAgentFiles();
+    if (files.length > 0) {
+      const file = files[0];
+      expect(file).toHaveProperty("name");
+      expect(file).toHaveProperty("path");
+      expect(file).toHaveProperty("source");
+      expect(typeof file.name).toBe("string");
+      expect(typeof file.path).toBe("string");
+      expect(typeof file.source).toBe("string");
+    }
   });
 });
