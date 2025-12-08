@@ -1,3 +1,10 @@
+## [2.14.1](https://github.com/johnlindquist/markdown-agent/compare/v2.14.0...v2.14.1) (2025-12-08)
+
+
+### Bug Fixes
+
+* improve _subcommand docs example ([426a2d7](https://github.com/johnlindquist/markdown-agent/commit/426a2d7484cf9ede1ef6719d53fa0abd46703f9f))
+
 # [2.14.0](https://github.com/johnlindquist/markdown-agent/compare/v2.13.1...v2.14.0) (2025-12-08)
 
 
