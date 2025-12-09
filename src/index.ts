@@ -3,10 +3,11 @@ import { parseFrontmatter } from "./parse";
 import { parseCliArgs, handleMaCommands } from "./cli";
 import { substituteTemplateVars, extractTemplateVars } from "./template";
 import { isRemoteUrl, fetchRemote, cleanupRemote } from "./remote";
-import { resolveCommand, buildArgs, runCommand, extractPositionalMappings, extractEnvVars, killCurrentChildProcess, hasInteractiveMarker } from "./command";
+import { resolveCommand, runCommand, extractEnvVars, killCurrentChildProcess, hasInteractiveMarker } from "./command";
+import { buildCommand, getSpawnArgs, formatCommandForDisplay } from "./command-builder";
 import { expandImports, hasImports } from "./imports";
 import { loadEnvFiles } from "./env";
-import { loadGlobalConfig, getCommandDefaults, applyDefaults, applyInteractiveMode } from "./config";
+import { loadGlobalConfig, getCommandDefaults, applyDefaults, applyInteractiveMode, loadFullConfig } from "./config";
 import { initLogger, getParseLogger, getTemplateLogger, getCommandLogger, getImportLogger, getCurrentLogPath } from "./logger";
 import { isDomainTrusted, promptForTrust, addTrustedDomain, extractDomain } from "./trust";
 import { dirname, resolve } from "path";
@@ -387,19 +388,28 @@ async function main() {
       finalBody = `<stdin>\n${stdinContent}\n</stdin>\n\n${finalBody}`;
     }
 
-    // Build CLI args from frontmatter + remaining passthrough args
+    // Load full config for command building
+    const fullConfig = await loadFullConfig(fileDir);
+
+    // Build the command specification using the unified command builder
+    // This is the SINGLE SOURCE OF TRUTH for command construction
     const templateVarSet = new Set(Object.keys(templateVars));
-    const args = [
-      ...buildArgs(frontmatter, templateVarSet),
-      ...remainingArgs,
-    ];
 
-    // Extract positional mappings ($1, $2, etc.)
-    const positionalMappings = extractPositionalMappings(frontmatter);
+    // Merge frontmatter with remaining CLI passthrough args
+    // remainingArgs are additional flags passed on CLI that should be appended
+    const commandSpec = buildCommand(
+      command,
+      frontmatter,
+      finalBody,
+      [],  // No extra positional args from CLI for now
+      templateVarSet,
+      fullConfig,
+      process.cwd()
+    );
 
-    // Build positionals array: body is $1, any remaining unmapped CLI args would be $2+
-    // For now, body is the only positional we support
-    const positionals = [finalBody];
+    // Append remaining CLI args to the spec's args
+    // These are passthrough flags like --verbose, --debug that weren't consumed
+    commandSpec.args = [...commandSpec.args, ...remainingArgs];
 
     // Handle dry-run mode: print what would be executed and exit
     if (dryRun) {
@@ -407,31 +417,11 @@ async function main() {
       console.log("DRY RUN - Command will NOT be executed");
       console.log("═══════════════════════════════════════════════════════════\n");
 
-      // Build final args with positional mappings applied (same as runCommand)
-      let dryRunArgs = [...args];
-
-      // Handle _subcommand: prepend subcommand(s) to args
-      if (frontmatter._subcommand) {
-        const subcommands = Array.isArray(frontmatter._subcommand)
-          ? frontmatter._subcommand
-          : [frontmatter._subcommand];
-        dryRunArgs = [...subcommands, ...dryRunArgs];
-      }
-
-      for (let i = 0; i < positionals.length; i++) {
-        const pos = i + 1;
-        const value = positionals[i];
-        if (positionalMappings.has(pos)) {
-          const flagName = positionalMappings.get(pos)!;
-          const flag = flagName.length === 1 ? `-${flagName}` : `--${flagName}`;
-          dryRunArgs.push(flag, `"${value.replace(/"/g, '\\"')}"`);
-        } else {
-          dryRunArgs.push(`"${value.replace(/"/g, '\\"')}"`);
-        }
-      }
+      // Use the unified formatCommandForDisplay for consistent output
+      const commandDisplay = formatCommandForDisplay(commandSpec);
 
       console.log("Command:");
-      console.log(`   ${command} ${dryRunArgs.join(" ")}\n`);
+      console.log(`   ${commandDisplay}\n`);
 
       console.log("Final Prompt:");
       console.log("───────────────────────────────────────────────────────────");
@@ -483,25 +473,23 @@ async function main() {
       }
     }
 
-    // Handle _subcommand: prepend subcommand(s) to args
-    let finalCommand = command;
-    let finalRunArgs = args;
-    if (frontmatter._subcommand) {
-      const subcommands = Array.isArray(frontmatter._subcommand)
-        ? frontmatter._subcommand
-        : [frontmatter._subcommand];
-      finalRunArgs = [...subcommands, ...args];
-    }
+    // Execute the command using the unified CommandSpec
+    // getSpawnArgs combines subcommands, args, and positionals in the correct order
+    const spawnArgs = getSpawnArgs(commandSpec);
 
-    getCommandLogger().info({ command: finalCommand, argsCount: finalRunArgs.length, promptLength: finalBody.length }, "Executing command");
+    getCommandLogger().info({
+      command: commandSpec.executable,
+      argsCount: spawnArgs.length,
+      promptLength: finalBody.length
+    }, "Executing command");
 
     const runResult = await runCommand({
-      command: finalCommand,
-      args: finalRunArgs,
-      positionals,
-      positionalMappings,
+      command: commandSpec.executable,
+      args: spawnArgs,
+      positionals: [],  // Already included in spawnArgs via getSpawnArgs
+      positionalMappings: new Map(),  // Already applied in buildCommand
       captureOutput: false,
-      env: envVars,
+      env: commandSpec.env,
     });
 
     getCommandLogger().info({ exitCode: runResult.exitCode }, "Command completed");
