@@ -325,7 +325,7 @@ export class AgentRuntime {
 
     // Extract _varname fields from frontmatter and match with --_varname CLI flags
     // Variables starting with _ are template variables (except internal keys)
-    const internalKeys = new Set(["_interactive", "_cwd", "_subcommand"]);
+    const internalKeys = new Set(["_interactive", "_i", "_cwd", "_subcommand"]);
     const namedVarFields = Object.keys(frontmatter)
       .filter(key => key.startsWith("_") && !internalKeys.has(key));
 
