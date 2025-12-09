@@ -82,43 +82,64 @@ interface MdCommandInfo {
  */
 async function checkMdCommand(): Promise<MdCommandInfo> {
   try {
-    // Use 'type' command to check what md is bound to
-    const proc = Bun.spawn(["zsh", "-c", "type -a md 2>/dev/null || bash -c 'type -a md 2>/dev/null'"], {
+    // Use interactive shell (-i) to detect aliases from .zshrc/oh-my-zsh
+    // The command checks type and also gets alias definition if it's an alias
+    const proc = Bun.spawn(["zsh", "-ic", "type -a md 2>/dev/null; echo '---ALIAS---'; alias md 2>/dev/null"], {
       stdout: "pipe",
       stderr: "pipe",
     });
     const output = await new Response(proc.stdout).text();
     await proc.exited;
 
-    if (!output.trim()) {
+    // Split output into type info and alias definition
+    const [typeOutput, aliasOutput] = output.split("---ALIAS---").map(s => s?.trim() ?? "");
+
+    if (!typeOutput) {
       return { exists: false, type: "unknown" };
     }
 
-    const lines = output.trim().split("\n");
+    const lines = typeOutput.split("\n").filter(l => !l.includes("can't change option"));
     const firstLine = (lines[0] ?? "").toLowerCase();
 
     // Check if it's our mdflow alias
-    if (firstLine.includes("mdflow") || firstLine.includes("alias") && output.includes("mdflow")) {
+    if (firstLine.includes("mdflow") || (firstLine.includes("alias") && typeOutput.includes("mdflow"))) {
       return { exists: false, type: "alias" }; // It's ours, treat as not conflicting
     }
 
-    // Determine the type
-    if (firstLine.includes("is an alias")) {
-      return { exists: true, type: "alias", location: output.trim() };
+    // Determine the type - check for alias first (aliases take precedence)
+    if (firstLine.includes("is an alias") || firstLine.includes("is aliased to")) {
+      // Extract alias definition for better display
+      // Format: "md is an alias for mkdir -p" or from alias cmd: "md='mkdir -p'"
+      let aliasValue = "";
+      const aliasMatch = firstLine.match(/is (?:an alias for|aliased to) (.+)/);
+      if (aliasMatch) {
+        aliasValue = aliasMatch[1];
+      } else if (aliasOutput) {
+        // Parse alias output like "md='mkdir -p'" or "md=mkdir -p"
+        const aliasDefMatch = aliasOutput.match(/md=["']?(.+?)["']?$/);
+        if (aliasDefMatch) {
+          aliasValue = aliasDefMatch[1];
+        }
+      }
+      return {
+        exists: true,
+        type: "alias",
+        location: aliasValue ? `alias md='${aliasValue}'` : firstLine
+      };
     }
     if (firstLine.includes("is a shell function") || firstLine.includes("is a function")) {
-      return { exists: true, type: "function", location: output.trim() };
+      return { exists: true, type: "function", location: "shell function" };
     }
     if (firstLine.includes("is a shell builtin")) {
-      return { exists: true, type: "builtin", location: output.trim() };
+      return { exists: true, type: "builtin", location: "shell builtin" };
     }
     if (firstLine.includes("is /") || firstLine.includes("is a")) {
       // Extract the path
       const match = firstLine.match(/is\s+(\S+)/);
-      return { exists: true, type: "binary", location: match?.[1] || output.trim() };
+      return { exists: true, type: "binary", location: match?.[1] || typeOutput };
     }
 
-    return { exists: true, type: "unknown", location: output.trim() };
+    return { exists: true, type: "unknown", location: typeOutput };
   } catch {
     return { exists: false, type: "unknown" };
   }
@@ -268,10 +289,18 @@ export async function runSetup(): Promise<void> {
     const mdCommand = await checkMdCommand();
 
     if (mdCommand.exists) {
-      console.log(`\n⚠️  The 'md' command is already bound to something else:`);
+      console.log(`\n⚠️  The 'md' command is already in use:`);
       console.log(`   ${mdCommand.location || `(${mdCommand.type})`}`);
-      console.log(`\n   This is commonly from oh-my-zsh or other shell plugins.`);
-      console.log(`   You can still use 'mdflow' directly, or override 'md' with an alias.\n`);
+
+      if (mdCommand.type === "alias") {
+        console.log(`\n   This alias is commonly set by oh-my-zsh (common-aliases plugin).`);
+        console.log(`   Adding 'alias md=mdflow' will override it.\n`);
+      } else if (mdCommand.type === "binary") {
+        console.log(`\n   This binary may be from a previous mdflow install or another tool.`);
+        console.log(`   Adding an alias will take precedence over the binary.\n`);
+      } else {
+        console.log(`\n   You can still use 'mdflow' directly, or override with an alias.\n`);
+      }
 
       addMdAlias = await confirm({
         message: "Would you like to add 'alias md=mdflow' to override it?",
