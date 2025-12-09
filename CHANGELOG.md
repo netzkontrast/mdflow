@@ -1,3 +1,10 @@
+# [2.16.0](https://github.com/johnlindquist/markdown-agent/compare/v2.15.2...v2.16.0) (2025-12-09)
+
+
+### Features
+
+* auto-run .md files with ma in inline commands ([e535bfc](https://github.com/johnlindquist/markdown-agent/commit/e535bfc6ddfbf0c07a569868a0e192b0897cf7c9))
+
 ## [2.15.2](https://github.com/johnlindquist/markdown-agent/compare/v2.15.1...v2.15.2) (2025-12-09)
 
 
