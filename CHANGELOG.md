@@ -1,3 +1,10 @@
+## [2.19.1](https://github.com/johnlindquist/mdflow/compare/v2.19.0...v2.19.1) (2025-12-09)
+
+
+### Bug Fixes
+
+* add _i shorthand to internalKeys set ([704ccd9](https://github.com/johnlindquist/mdflow/commit/704ccd9840e4e5f6788fc95837ed5bf60af678e1))
+
 # [2.19.0](https://github.com/johnlindquist/mdflow/compare/v2.18.1...v2.19.0) (2025-12-09)
 
 
