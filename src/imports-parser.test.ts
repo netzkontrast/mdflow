@@ -12,6 +12,7 @@ import {
   isGlobPattern,
   parseLineRange,
   parseSymbolExtraction,
+  findSafeRanges,
 } from './imports-parser';
 
 describe('parseImports', () => {
@@ -395,27 +396,105 @@ describe('parseImports', () => {
     });
   });
 
-  describe('fuzz testing - markdown variations', () => {
-    it('handles code blocks containing import-like syntax', () => {
-      // Parser is not context-aware, so it will find these
-      // This documents expected behavior
+  describe('context-aware parsing - ignores code blocks', () => {
+    it('ignores imports inside fenced code blocks', () => {
       const content = '```\n@./inside-code.md\n```';
       const actions = parseImports(content);
-      // Current parser DOES match inside code blocks
-      expect(actions).toHaveLength(1);
+      // Context-aware parser ignores imports inside code blocks
+      expect(actions).toHaveLength(0);
     });
 
-    it('handles inline code with import syntax', () => {
+    it('ignores imports inside fenced code blocks with language', () => {
+      const content = '```typescript\n@./inside-code.md\n```';
+      const actions = parseImports(content);
+      expect(actions).toHaveLength(0);
+    });
+
+    it('ignores imports inside tilde fenced code blocks', () => {
+      const content = '~~~\n@./inside-code.md\n~~~';
+      const actions = parseImports(content);
+      expect(actions).toHaveLength(0);
+    });
+
+    it('ignores imports inside inline code spans', () => {
       const content = 'Use `@./path.md` syntax';
       const actions = parseImports(content);
-      // Current parser DOES match inside inline code
-      expect(actions).toHaveLength(1);
+      // Context-aware parser ignores imports inside inline code
+      expect(actions).toHaveLength(0);
     });
 
-    it('handles HTML comments', () => {
+    it('ignores command imports inside inline code spans', () => {
+      const content = 'Use `!`echo test`` syntax';
+      const actions = parseImports(content);
+      expect(actions).toHaveLength(0);
+    });
+
+    it('ignores URL imports inside code blocks', () => {
+      const content = '```\n@https://example.com\n```';
+      const actions = parseImports(content);
+      expect(actions).toHaveLength(0);
+    });
+
+    it('parses imports before and after code blocks', () => {
+      const content = '@./before.md\n```\n@./inside.md\n```\n@./after.md';
+      const actions = parseImports(content);
+      expect(actions).toHaveLength(2);
+      expect((actions[0] as any).path).toBe('./before.md');
+      expect((actions[1] as any).path).toBe('./after.md');
+    });
+
+    it('parses imports between multiple code blocks', () => {
+      const content = '```\n@./a.md\n```\n@./real.md\n```\n@./b.md\n```';
+      const actions = parseImports(content);
+      expect(actions).toHaveLength(1);
+      expect((actions[0] as any).path).toBe('./real.md');
+    });
+
+    it('parses imports around inline code', () => {
+      const content = '@./before.md `@./inside.md` @./after.md';
+      const actions = parseImports(content);
+      expect(actions).toHaveLength(2);
+      expect((actions[0] as any).path).toBe('./before.md');
+      expect((actions[1] as any).path).toBe('./after.md');
+    });
+
+    it('handles nested backticks in code blocks', () => {
+      const content = '```\nconst x = `@./template.md`;\n```';
+      const actions = parseImports(content);
+      expect(actions).toHaveLength(0);
+    });
+
+    it('handles unclosed code block (treats rest as code)', () => {
+      const content = '```\n@./inside.md';
+      const actions = parseImports(content);
+      expect(actions).toHaveLength(0);
+    });
+
+    it('handles complex document with mixed content', () => {
+      const content = `# Documentation
+
+Here is a real import: @./config.md
+
+Example usage in code:
+\`\`\`bash
+# This should NOT be imported
+@./example.md
+\`\`\`
+
+Inline example: \`@./inline-example.md\`
+
+Another real import: @./footer.md
+`;
+      const actions = parseImports(content);
+      expect(actions).toHaveLength(2);
+      expect((actions[0] as any).path).toBe('./config.md');
+      expect((actions[1] as any).path).toBe('./footer.md');
+    });
+
+    it('handles HTML comments (still parsed - not code blocks)', () => {
       const content = '<!-- @./commented.md -->';
       const actions = parseImports(content);
-      // Current parser DOES match inside comments
+      // HTML comments are NOT code blocks, so imports are still parsed
       expect(actions).toHaveLength(1);
     });
 
@@ -565,5 +644,105 @@ describe('parseSymbolExtraction', () => {
       path: './f.ts',
       symbol: 'Config2',
     });
+  });
+});
+
+describe('findSafeRanges', () => {
+  it('returns full range for plain text', () => {
+    const content = 'plain text content';
+    const ranges = findSafeRanges(content);
+    expect(ranges).toHaveLength(1);
+    expect(ranges[0]).toEqual({ start: 0, end: content.length });
+  });
+
+  it('returns empty array for only code block', () => {
+    const content = '```\ncode\n```';
+    const ranges = findSafeRanges(content);
+    expect(ranges).toHaveLength(0);
+  });
+
+  it('splits around fenced code block', () => {
+    const content = 'before\n```\ncode\n```\nafter';
+    const ranges = findSafeRanges(content);
+    expect(ranges).toHaveLength(2);
+    expect(ranges[0]).toEqual({ start: 0, end: 7 }); // 'before\n'
+    expect(ranges[1].start).toBeGreaterThan(ranges[0].end);
+  });
+
+  it('splits around inline code', () => {
+    const content = 'before `code` after';
+    const ranges = findSafeRanges(content);
+    expect(ranges).toHaveLength(2);
+    expect(ranges[0]).toEqual({ start: 0, end: 7 }); // 'before '
+    // After the closing backtick
+    expect(ranges[1].start).toBe(13); // position after '`code`'
+    expect(ranges[1].end).toBe(content.length);
+  });
+
+  it('handles multiple inline code spans', () => {
+    const content = 'a `b` c `d` e';
+    const ranges = findSafeRanges(content);
+    expect(ranges).toHaveLength(3); // 'a ', ' c ', ' e'
+  });
+
+  it('handles tilde fenced code blocks', () => {
+    const content = 'before\n~~~\ncode\n~~~\nafter';
+    const ranges = findSafeRanges(content);
+    expect(ranges).toHaveLength(2);
+  });
+
+  it('handles code block with language identifier', () => {
+    const content = '```typescript\ncode\n```';
+    const ranges = findSafeRanges(content);
+    expect(ranges).toHaveLength(0);
+  });
+
+  it('handles unclosed code block', () => {
+    const content = 'before\n```\ncode';
+    const ranges = findSafeRanges(content);
+    expect(ranges).toHaveLength(1);
+    expect(ranges[0]).toEqual({ start: 0, end: 7 }); // 'before\n'
+  });
+
+  it('handles empty content', () => {
+    const ranges = findSafeRanges('');
+    expect(ranges).toHaveLength(0);
+  });
+
+  it('handles multiple code blocks', () => {
+    const content = 'a\n```\nb\n```\nc\n```\nd\n```\ne';
+    const ranges = findSafeRanges(content);
+    // Should have: 'a\n', 'c\n', 'e'
+    expect(ranges).toHaveLength(3);
+  });
+
+  it('handles inline code at start', () => {
+    const content = '`code` after';
+    const ranges = findSafeRanges(content);
+    expect(ranges).toHaveLength(1);
+    expect(ranges[0].start).toBe(6); // after '`code`'
+  });
+
+  it('handles inline code at end', () => {
+    const content = 'before `code`';
+    const ranges = findSafeRanges(content);
+    expect(ranges).toHaveLength(1);
+    expect(ranges[0]).toEqual({ start: 0, end: 7 }); // 'before '
+  });
+
+  it('handles closing fence not at line start (stays in code)', () => {
+    // Closing fence must be at start of line in markdown spec
+    const content = '```\ncode ``` not closing\n```';
+    const ranges = findSafeRanges(content);
+    // The ``` in the middle is not a closing fence because it's not at line start
+    expect(ranges).toHaveLength(0);
+  });
+
+  it('handles double backticks (not triple)', () => {
+    // Double backticks followed by single should NOT start fenced code
+    const content = '`` @./file.md ``';
+    const ranges = findSafeRanges(content);
+    // Double backtick starts inline code that ends at next backtick
+    expect(ranges.length).toBeGreaterThan(0);
   });
 });
