@@ -1,5 +1,5 @@
-import { test, expect, beforeAll, afterAll } from "bun:test";
-import { expandImports, hasImports, toCanonicalPath } from "./imports";
+import { test, expect, beforeAll, afterAll, describe } from "bun:test";
+import { expandImports, hasImports, toCanonicalPath, isMarkdownFileCommand } from "./imports";
 import { mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -421,4 +421,64 @@ test("expandImports runs bun commands in invocationCwd", async () => {
   // The bun process should report the invocation directory as cwd
   expect(result).toContain("bun-invocation-dir");
   expect(result).not.toContain("bun-agent-dir");
+});
+
+// Auto-run .md files with ma tests
+describe("isMarkdownFileCommand", () => {
+  test("detects simple .md file", () => {
+    expect(isMarkdownFileCommand("foo.md")).toBe(true);
+  });
+
+  test("detects relative path .md file", () => {
+    expect(isMarkdownFileCommand("./foo.md")).toBe(true);
+    expect(isMarkdownFileCommand("../foo.md")).toBe(true);
+  });
+
+  test("detects home path .md file", () => {
+    expect(isMarkdownFileCommand("~/foo.md")).toBe(true);
+    expect(isMarkdownFileCommand("~/.ma/foo.md")).toBe(true);
+  });
+
+  test("detects absolute path .md file", () => {
+    expect(isMarkdownFileCommand("/path/to/foo.md")).toBe(true);
+  });
+
+  test("detects compound .md file names", () => {
+    expect(isMarkdownFileCommand("foo.claude.md")).toBe(true);
+    expect(isMarkdownFileCommand("task.i.claude.md")).toBe(true);
+  });
+
+  test("detects .md file with arguments", () => {
+    expect(isMarkdownFileCommand("foo.md arg1 arg2")).toBe(true);
+    expect(isMarkdownFileCommand("./task.claude.md --verbose")).toBe(true);
+  });
+
+  test("does NOT match non-.md files", () => {
+    expect(isMarkdownFileCommand("foo.txt")).toBe(false);
+    expect(isMarkdownFileCommand("foo.js")).toBe(false);
+    expect(isMarkdownFileCommand("echo hello")).toBe(false);
+    expect(isMarkdownFileCommand("ls -la")).toBe(false);
+  });
+
+  test("does NOT match commands containing .md elsewhere", () => {
+    expect(isMarkdownFileCommand("echo foo.md")).toBe(false);
+    expect(isMarkdownFileCommand("cat foo.md")).toBe(false);
+    expect(isMarkdownFileCommand("grep pattern foo.md")).toBe(false);
+  });
+
+  test("does NOT match .md in the middle of command", () => {
+    expect(isMarkdownFileCommand("cp foo.md bar.md")).toBe(false);
+  });
+});
+
+test("expandImports does not affect non-.md commands", async () => {
+  const content = "!`echo 'not an md file'`";
+  const result = await expandImports(content, testDir);
+  expect(result).toContain("not an md file");
+});
+
+test("expandImports preserves normal shell commands", async () => {
+  const content = "!`echo hello.txt`";
+  const result = await expandImports(content, testDir);
+  expect(result).toContain("hello.txt");
 });

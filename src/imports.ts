@@ -741,6 +741,20 @@ async function processFileImport(
 }
 
 /**
+ * Pattern to detect markdown file paths that should be auto-run with `ma`
+ * Matches: foo.md, ./foo.md, ~/foo.md, /path/to/foo.md, foo.claude.md, etc.
+ * The command must start with a path-like pattern and end with .md
+ */
+const MD_FILE_COMMAND_PATTERN = /^(~?\.?\.?\/)?[^\s]+\.md(\s|$)/;
+
+/**
+ * Check if a command looks like a markdown file that should be run with `ma`
+ */
+export function isMarkdownFileCommand(command: string): boolean {
+  return MD_FILE_COMMAND_PATTERN.test(command.trim());
+}
+
+/**
  * Process a single command inline
  */
 async function processCommandInline(
@@ -749,8 +763,15 @@ async function processCommandInline(
   verbose: boolean,
   importCtx?: ImportContext
 ): Promise<string> {
-  // Always log command execution to stderr for visibility
-  console.error(`[imports] Executing: ${command}`);
+  // Auto-prefix markdown files with `ma` to run them as agents
+  let actualCommand = command;
+  if (isMarkdownFileCommand(command)) {
+    actualCommand = `ma ${command}`;
+    console.error(`[imports] Auto-running .md file with ma: ${actualCommand}`);
+  } else {
+    // Always log command execution to stderr for visibility
+    console.error(`[imports] Executing: ${command}`);
+  }
 
   // Use importCtx.env if provided, otherwise fall back to process.env
   const env = importCtx?.env ?? process.env;
@@ -760,7 +781,7 @@ async function processCommandInline(
   const commandCwd = importCtx?.invocationCwd ?? currentFileDir;
 
   try {
-    const result = Bun.spawnSync(["sh", "-c", command], {
+    const result = Bun.spawnSync(["sh", "-c", actualCommand], {
       cwd: commandCwd,
       stdout: "pipe",
       stderr: "pipe",
@@ -785,7 +806,7 @@ async function processCommandInline(
     }
     return output;
   } catch (err) {
-    throw new Error(`Command failed: ${command} - ${(err as Error).message}`);
+    throw new Error(`Command failed: ${actualCommand} - ${(err as Error).message}`);
   }
 }
 
