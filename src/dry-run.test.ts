@@ -122,13 +122,13 @@ Hello, this is a test prompt.`
     await writeFile(
       testFile,
       `---
-args: [name]
+_name: ""
 ---
-Hello, {{ name }}! Welcome.`
+Hello, {{ _name }}! Welcome.`
     );
 
     const proc = Bun.spawn(
-      ["bun", "run", "src/index.ts", testFile, "Alice", "--dry-run"],
+      ["bun", "run", "src/index.ts", testFile, "--_name", "Alice", "--dry-run"],
       {
         cwd: process.cwd(),
         stdout: "pipe",
@@ -142,7 +142,7 @@ Hello, {{ name }}! Welcome.`
     expect(exitCode).toBe(0);
     expect(stdout).toContain("DRY RUN");
     expect(stdout).toContain("Hello, Alice! Welcome.");
-    expect(stdout).not.toContain("{{ name }}"); // Template var should be replaced
+    expect(stdout).not.toContain("{{ _name }}"); // Template var should be replaced
   });
 
   test("dry-run with --command flag shows correct command", async () => {

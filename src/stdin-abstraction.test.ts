@@ -220,35 +220,28 @@ describe("stdin abstraction", () => {
       expect(result.exitCode).toBe(0);
     });
 
-    it("wraps stdin content in tags when present", async () => {
+    it("includes stdin content via _stdin template variable", async () => {
       const filePath = join(tempDir, "stdin-tags.claude.md");
-      await writeFile(filePath, `---\n---\nProcess this:`);
+      await writeFile(filePath, `---\n---\nInput: {{ _stdin }}\nProcess this:`);
 
       const runtime = createRuntime();
       const resolved = await runtime.resolve(filePath);
       const context = await runtime.buildContext(resolved);
-      const processed = await runtime.processTemplate(context);
+      const processed = await runtime.processTemplate(context, {
+        stdinContent: "input data",
+      });
 
-      // Simulate what execute does with stdin
-      const stdinContent = "input data";
-      let finalBody = processed.body;
-      if (stdinContent) {
-        finalBody = `<stdin>\n${stdinContent}\n</stdin>\n\n${finalBody}`;
-      }
-
-      expect(finalBody).toContain("<stdin>");
-      expect(finalBody).toContain("input data");
-      expect(finalBody).toContain("</stdin>");
-      expect(finalBody).toContain("Process this:");
+      expect(processed.body).toContain("input data");
+      expect(processed.body).toContain("Process this:");
+      expect(processed.templateVars["_stdin"]).toBe("input data");
     });
 
     it("combines template vars with stdin", async () => {
       const filePath = join(tempDir, "combined.claude.md");
       await writeFile(filePath, `---
-args:
-  - name
+_name: ""
 ---
-Hello {{ name }}!`);
+Hello {{ _name }}!`);
 
       const { streams } = createTestStreams("context from pipe");
 
@@ -256,11 +249,11 @@ Hello {{ name }}!`);
       const resolved = await runtime.resolve(filePath);
       const context = await runtime.buildContext(resolved);
       const processed = await runtime.processTemplate(context, {
-        passthroughArgs: ["World"],
+        passthroughArgs: ["--_name", "World"],
       });
 
       expect(processed.body).toBe("Hello World!");
-      expect(processed.templateVars).toEqual({ name: "World" });
+      expect(processed.templateVars).toEqual({ "_name": "World" });
     });
   });
 
@@ -347,11 +340,12 @@ Analyze the input`);
     expect(result.exitCode).toBe(0);
   });
 
-  it("stdin with pre hook output", async () => {
+  it("stdin with pre hook output via _stdin", async () => {
     const filePath = join(tempDir, "pre-stdin.claude.md");
     await writeFile(filePath, `---
 pre: echo "PRE_OUTPUT"
 ---
+Input: {{ _stdin }}
 Body here`);
 
     const { streams } = createTestStreams("stdin content");
@@ -363,19 +357,12 @@ Body here`);
     expect(context.preHookOutput).toBe("PRE_OUTPUT\n");
 
     // Both pre hook and stdin should be included
-    const processed = await runtime.processTemplate(context);
-    let finalBody = processed.body;
+    const processed = await runtime.processTemplate(context, {
+      stdinContent: "stdin content",
+    });
 
-    if (context.preHookOutput) {
-      finalBody = `${context.preHookOutput.trim()}\n\n${finalBody}`;
-    }
-
-    const stdinContent = "stdin content";
-    finalBody = `<stdin>\n${stdinContent}\n</stdin>\n\n${finalBody}`;
-
-    expect(finalBody).toContain("PRE_OUTPUT");
-    expect(finalBody).toContain("<stdin>");
-    expect(finalBody).toContain("stdin content");
-    expect(finalBody).toContain("Body here");
+    expect(processed.body).toContain("stdin content");
+    expect(processed.body).toContain("Body here");
+    expect(processed.templateVars["_stdin"]).toBe("stdin content");
   });
 });

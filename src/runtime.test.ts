@@ -151,20 +151,19 @@ Hello`);
     it("substitutes template variables", async () => {
       const filePath = join(tempDir, "template.claude.md");
       await writeFile(filePath, `---
-args:
-  - name
+_name: ""
 ---
-Hello {{ name }}!`);
+Hello {{ _name }}!`);
 
       const runtime = createRuntime();
       const resolved = await runtime.resolve(filePath);
       const context = await runtime.buildContext(resolved);
       const processed = await runtime.processTemplate(context, {
-        passthroughArgs: ["World"],
+        passthroughArgs: ["--_name", "World"],
       });
 
       expect(processed.body).toBe("Hello World!");
-      expect(processed.templateVars).toEqual({ name: "World" });
+      expect(processed.templateVars).toEqual({ "_name": "World" });
     });
 
     it("builds CLI args from frontmatter", async () => {
@@ -203,30 +202,30 @@ Body`);
       expect(processed.positionalMappings.get(1)).toBe("prompt");
     });
 
-    it("handles $varname fields with CLI flags", async () => {
+    it("handles _varname fields with CLI flags", async () => {
       const filePath = join(tempDir, "varname.claude.md");
       await writeFile(filePath, `---
-$feature_name: default_feature
+_feature_name: default_feature
 ---
-Implement {{ feature_name }}`);
+Implement {{ _feature_name }}`);
 
       const runtime = createRuntime();
       const resolved = await runtime.resolve(filePath);
       const context = await runtime.buildContext(resolved);
       const processed = await runtime.processTemplate(context, {
-        passthroughArgs: ["--feature_name", "custom_feature"],
+        passthroughArgs: ["--_feature_name", "custom_feature"],
       });
 
       expect(processed.body).toBe("Implement custom_feature");
-      expect(processed.templateVars).toEqual({ feature_name: "custom_feature" });
+      expect(processed.templateVars).toEqual({ "_feature_name": "custom_feature" });
     });
 
     it("uses default value when CLI flag not provided", async () => {
       const filePath = join(tempDir, "default.claude.md");
       await writeFile(filePath, `---
-$mode: development
+_mode: development
 ---
-Mode: {{ mode }}`);
+Mode: {{ _mode }}`);
 
       const runtime = createRuntime();
       const resolved = await runtime.resolve(filePath);
@@ -265,16 +264,15 @@ Mode: {{ mode }}`);
     it("passes through remaining args to command", async () => {
       const filePath = join(tempDir, "passthrough.claude.md");
       await writeFile(filePath, `---
-args:
-  - name
+_name: ""
 ---
-Hello {{ name }}`);
+Hello {{ _name }}`);
 
       const runtime = createRuntime();
       const resolved = await runtime.resolve(filePath);
       const context = await runtime.buildContext(resolved);
       const processed = await runtime.processTemplate(context, {
-        passthroughArgs: ["World", "--extra", "flag"],
+        passthroughArgs: ["--_name", "World", "--extra", "flag"],
       });
 
       expect(processed.args).toContain("--extra");
@@ -298,22 +296,20 @@ Test prompt`);
       expect(result.logPath).toBeTruthy();
     });
 
-    it("includes stdin content in final body", async () => {
+    it("includes stdin content via _stdin template variable", async () => {
       const filePath = join(tempDir, "stdin.claude.md");
-      await writeFile(filePath, `---\n---\nBody content`);
+      await writeFile(filePath, `---\n---\nInput: {{ _stdin }}\nBody content`);
 
       const runtime = createRuntime();
       const resolved = await runtime.resolve(filePath);
       const context = await runtime.buildContext(resolved);
-      const processed = await runtime.processTemplate(context);
+      const processed = await runtime.processTemplate(context, {
+        stdinContent: "stdin data",
+      });
 
-      // The execute phase adds stdin
-      const stdinContent = "stdin data";
-      const finalBody = `<stdin>\n${stdinContent}\n</stdin>\n\n${processed.body}`;
-
-      expect(finalBody).toContain("<stdin>");
-      expect(finalBody).toContain("stdin data");
-      expect(finalBody).toContain("Body content");
+      expect(processed.body).toContain("stdin data");
+      expect(processed.body).toContain("Body content");
+      expect(processed.templateVars["_stdin"]).toBe("stdin data");
     });
 
     it("handles cleanup correctly", async () => {
@@ -417,21 +413,20 @@ Hello world prompt`);
     it("includes template variables in ExecutionPlan", async () => {
       const filePath = join(tempDir, "template.claude.md");
       await writeFile(filePath, `---
-args:
-  - name
-  - action
+_name: ""
+_action: ""
 ---
-Hello {{ name }}, please {{ action }}`);
+Hello {{ _name }}, please {{ _action }}`);
 
       const runtime = createRuntime();
       const result = await runtime.run(filePath, {
         dryRun: true,
         returnPlan: true,
-        passthroughArgs: ["World", "test"],
+        passthroughArgs: ["--_name", "World", "--_action", "test"],
       });
 
       expect(result.plan).toBeDefined();
-      expect(result.plan!.templateVars).toEqual({ name: "World", action: "test" });
+      expect(result.plan!.templateVars).toEqual({ "_name": "World", "_action": "test" });
       expect(result.plan!.finalPrompt).toBe("Hello World, please test");
     });
 
@@ -502,9 +497,9 @@ Body`);
       expect(result.plan!.frontmatter["max-tokens"]).toBe(1000);
     });
 
-    it("includes stdin content in finalPrompt", async () => {
+    it("includes stdin content in finalPrompt via _stdin", async () => {
       const filePath = join(tempDir, "stdin.claude.md");
-      await writeFile(filePath, `---\n---\nProcess this input:`);
+      await writeFile(filePath, `---\n---\nInput: {{ _stdin }}\nProcess this input:`);
 
       const runtime = createRuntime();
       const result = await runtime.run(filePath, {
@@ -514,10 +509,9 @@ Body`);
       });
 
       expect(result.plan).toBeDefined();
-      expect(result.plan!.finalPrompt).toContain("<stdin>");
       expect(result.plan!.finalPrompt).toContain("stdin data here");
-      expect(result.plan!.finalPrompt).toContain("</stdin>");
       expect(result.plan!.finalPrompt).toContain("Process this input:");
+      expect(result.plan!.templateVars["_stdin"]).toBe("stdin data here");
     });
 
     it("tracks multiple nested imports", async () => {

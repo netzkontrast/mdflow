@@ -318,51 +318,31 @@ export class AgentRuntime {
     let remainingArgs = [...(options.passthroughArgs || [])];
     let templateVars: Record<string, string> = { ...(options.templateVars || {}) };
 
-    // Consume named positional arguments from CLI (args: in frontmatter)
-    if (frontmatter.args && Array.isArray(frontmatter.args)) {
-      const requiredArgs = frontmatter.args;
-
-      for (const argName of requiredArgs) {
-        // Find the first non-flag argument
-        const argIndex = remainingArgs.findIndex(arg => !arg.startsWith("-"));
-
-        if (argIndex !== -1) {
-          templateVars[argName] = remainingArgs[argIndex];
-          // Consume it so it isn't passed to the command
-          remainingArgs.splice(argIndex, 1);
-        }
-      }
+    // Inject stdin as _stdin template variable
+    if (options.stdinContent) {
+      templateVars["_stdin"] = options.stdinContent;
     }
 
-    // Extract $varname fields from frontmatter and match with --varname CLI flags
+    // Extract _varname fields from frontmatter and match with --_varname CLI flags
+    // Variables starting with _ are template variables (except internal keys)
+    const internalKeys = new Set(["_interactive", "_cwd", "_subcommand"]);
     const namedVarFields = Object.keys(frontmatter)
-      .filter(key => key.startsWith("$") && !/^\$\d+$/.test(key));
+      .filter(key => key.startsWith("_") && !internalKeys.has(key));
 
     for (const key of namedVarFields) {
-      const varName = key.slice(1); // Remove $ prefix
       const defaultValue = frontmatter[key];
 
-      // Look for --varname or --var-name (convert underscores to hyphens for matching)
-      const flagVariants = [
-        `--${varName}`,
-        `--${varName.replace(/_/g, "-")}`,
-      ];
+      // CLI flag matches the full key including underscore: --_name
+      const flag = `--${key}`;
+      const flagIndex = remainingArgs.findIndex(arg => arg === flag);
 
-      let foundInCli = false;
-      for (const flag of flagVariants) {
-        const flagIndex = remainingArgs.findIndex(arg => arg === flag);
-        if (flagIndex !== -1 && flagIndex + 1 < remainingArgs.length) {
-          templateVars[varName] = remainingArgs[flagIndex + 1];
-          // Consume both flag and value
-          remainingArgs.splice(flagIndex, 2);
-          foundInCli = true;
-          break;
-        }
-      }
-
-      // Use default value from frontmatter if not provided via CLI
-      if (!foundInCli && defaultValue !== undefined && defaultValue !== null && defaultValue !== "") {
-        templateVars[varName] = String(defaultValue);
+      if (flagIndex !== -1 && flagIndex + 1 < remainingArgs.length) {
+        templateVars[key] = remainingArgs[flagIndex + 1];
+        // Consume both flag and value
+        remainingArgs.splice(flagIndex, 2);
+      } else if (defaultValue !== undefined && defaultValue !== null && defaultValue !== "") {
+        // Use default value from frontmatter if not provided via CLI
+        templateVars[key] = String(defaultValue);
       }
     }
 
@@ -424,16 +404,13 @@ export class AgentRuntime {
     const { command, envVars, preHookOutput } = context;
     const { body, args, positionalMappings } = processed;
 
-    // Build final prompt with stdin and pre-hook output
+    // Build final prompt with pre-hook output
+    // Note: stdin is injected as $stdin template variable during processTemplate phase
     let finalBody = body;
 
     // Prepend pre-hook output if present
     if (preHookOutput) {
       finalBody = `${preHookOutput.trim()}\n\n${finalBody}`;
-    }
-
-    if (options.stdinContent) {
-      finalBody = `<stdin>\n${options.stdinContent}\n</stdin>\n\n${finalBody}`;
     }
 
     // Build positionals array: body is $1
@@ -483,10 +460,7 @@ export class AgentRuntime {
         if (context.preHookOutput) {
           finalBody = `${context.preHookOutput.trim()}\n\n${finalBody}`;
         }
-
-        if (options.stdinContent) {
-          finalBody = `<stdin>\n${options.stdinContent}\n</stdin>\n\n${finalBody}`;
-        }
+        // Note: stdin is already substituted as $stdin during processTemplate phase
 
         // Use real token counting instead of approximation
         const estimatedTokens = countTokens(finalBody);

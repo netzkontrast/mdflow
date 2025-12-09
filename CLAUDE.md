@@ -64,7 +64,7 @@ bun run md task.claude.md
 
 - **`types.ts`** - Core TypeScript interfaces
   - `AgentFrontmatter`: Simple interface with system keys + passthrough
-  - System keys: `args`, `env`, `$1`/`$2`/etc.
+  - System keys: `_varname` (template vars), `env`, `$1`/`$2`/etc.
 
 - **`schema.ts`** - Minimal Zod validation (system keys only, rest passthrough)
 
@@ -91,7 +91,8 @@ Commands are resolved in priority order:
 ### Frontmatter Keys
 
 **System keys** (consumed by md, not passed to command):
-- `args`: Named positional arguments for template vars
+- `_varname`: Template variables (e.g., `_name: "default"` → `{{ _name }}` in body → `--_name` CLI flag)
+- `_stdin`: Auto-injected template variable containing piped input
 - `env` (object form): Sets process.env before execution
 - `$1`, `$2`, etc.: Map positional args to flags
 - `_interactive`: Enable interactive mode (overrides print-mode defaults)
@@ -151,10 +152,11 @@ commands:
 
 Uses [LiquidJS](https://liquidjs.com/) for full template support:
 
-- Variables: `{{ variable }}`
-- Conditionals: `{% if force %}--force{% endif %}`
-- Filters: `{{ name | upcase }}`, `{{ value | default: "fallback" }}`
-- `args:` frontmatter to consume CLI positionals as template vars
+- Variables: `{{ _varname }}` (use `_` prefix for template vars)
+- Stdin: `{{ _stdin }}` (auto-injected from piped input)
+- Conditionals: `{% if _force %}--force{% endif %}`
+- Filters: `{{ _name | upcase }}`, `{{ _value | default: "fallback" }}`
+- CLI override: `--_varname value` matches `_varname` in frontmatter
 
 ## Testing Patterns
 

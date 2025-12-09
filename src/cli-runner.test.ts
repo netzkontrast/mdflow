@@ -179,12 +179,11 @@ Process this input`);
   });
 
   describe("template variables", () => {
-    it("processes args frontmatter for positional template vars", async () => {
+    it("processes _varname frontmatter for template vars", async () => {
       env.addFile("/test/template.echo.md", `---
-args:
-  - name
+_name: ""
 ---
-Hello {{ name }}`);
+Hello {{ _name }}`);
 
       const runner = new CliRunner({
         env,
@@ -192,8 +191,8 @@ Hello {{ name }}`);
         cwd: "/test",
       });
 
-      // Provide the template variable, verify with dry-run
-      const result = await runner.run(["node", "md", "/test/template.echo.md", "World", "--dry-run"]);
+      // Provide the template variable via CLI flag, verify with dry-run
+      const result = await runner.run(["node", "md", "/test/template.echo.md", "--_name", "World", "--dry-run"]);
       expect(result.exitCode).toBe(0);
     });
 
@@ -214,11 +213,11 @@ Hello {{ missing_var }}`);
       expect(result.errorMessage).toContain("Missing template variables");
     });
 
-    it("handles $varname fields from frontmatter", async () => {
+    it("handles _varname fields from frontmatter", async () => {
       env.addFile("/test/namedvar.echo.md", `---
-$feature_name: default-feature
+_feature_name: default-feature
 ---
-Implement {{ feature_name }}`);
+Implement {{ _feature_name }}`);
 
       const runner = new CliRunner({
         env,
@@ -231,11 +230,11 @@ Implement {{ feature_name }}`);
       expect(result.exitCode).toBe(0);
     });
 
-    it("overrides $varname with CLI flag", async () => {
+    it("overrides _varname with CLI flag", async () => {
       env.addFile("/test/override.echo.md", `---
-$feature_name: default
+_feature_name: default
 ---
-Implement {{ feature_name }}`);
+Implement {{ _feature_name }}`);
 
       const runner = new CliRunner({
         env,
@@ -246,7 +245,7 @@ Implement {{ feature_name }}`);
       // Override with CLI flag
       const result = await runner.run([
         "node", "md", "/test/override.echo.md",
-        "--feature_name", "custom-value",
+        "--_feature_name", "custom-value",
         "--dry-run"
       ]);
       expect(result.exitCode).toBe(0);

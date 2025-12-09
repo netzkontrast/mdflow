@@ -306,32 +306,28 @@ export class CliRunner {
     const envVars = extractEnvVars(frontmatter);
     if (envVars) Object.entries(envVars).forEach(([k, v]) => { this.processEnv[k] = v; });
 
-    // Template vars
+    // Template vars - all use _prefix (e.g., _name in frontmatter → {{ _name }} in body)
     let templateVars: Record<string, string> = {};
-    if (frontmatter.args && Array.isArray(frontmatter.args)) {
-      for (const argName of frontmatter.args) {
-        const idx = remaining.findIndex((a) => !a.startsWith("-"));
-        if (idx !== -1) { templateVars[argName] = remaining[idx]; remaining.splice(idx, 1); }
-      }
+
+    // Inject stdin as _stdin template variable
+    if (stdinContent) {
+      templateVars["_stdin"] = stdinContent;
     }
 
-    const namedVarFields = Object.keys(frontmatter).filter((k) => k.startsWith("$") && !/^\$\d+$/.test(k));
+    // Extract _varname fields from frontmatter and match with --_varname CLI flags
+    // Variables starting with _ are template variables (except internal keys like _interactive, _cwd, _subcommand)
+    const internalKeys = new Set(["_interactive", "_cwd", "_subcommand"]);
+    const namedVarFields = Object.keys(frontmatter).filter((k) => k.startsWith("_") && !internalKeys.has(k));
     for (const key of namedVarFields) {
-      const varName = key.slice(1);
       const defaultValue = frontmatter[key];
-      const flags = [`--${varName}`, `--${varName.replace(/_/g, "-")}`];
-      let found = false;
-      for (const flag of flags) {
-        const idx = remaining.findIndex((a) => a === flag);
-        if (idx !== -1 && idx + 1 < remaining.length) {
-          templateVars[varName] = remaining[idx + 1];
-          remaining.splice(idx, 2);
-          found = true;
-          break;
-        }
-      }
-      if (!found && defaultValue != null && defaultValue !== "") {
-        templateVars[varName] = String(defaultValue);
+      // CLI flag matches the full key including underscore: --_name
+      const flag = `--${key}`;
+      const idx = remaining.findIndex((a) => a === flag);
+      if (idx !== -1 && idx + 1 < remaining.length) {
+        templateVars[key] = remaining[idx + 1];
+        remaining.splice(idx, 2);
+      } else if (defaultValue != null && defaultValue !== "") {
+        templateVars[key] = String(defaultValue);
       }
     }
 
@@ -373,7 +369,6 @@ export class CliRunner {
     }
 
     let finalBody = body;
-    if (stdinContent) finalBody = `<stdin>\n${stdinContent}\n</stdin>\n\n${finalBody}`;
 
     const templateVarSet = new Set(Object.keys(templateVars));
     const args = [...buildArgs(frontmatter, templateVarSet), ...remaining];

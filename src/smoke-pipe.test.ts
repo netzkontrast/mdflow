@@ -22,11 +22,12 @@ describe("smoke: pipe between agents", () => {
     await rm(testDir, { recursive: true, force: true });
   });
 
-  test("stdin is passed to agent and wrapped in tags", async () => {
-    // Agent that just echoes its body (which includes stdin)
+  test("stdin is passed to agent via _stdin variable", async () => {
+    // Agent that uses _stdin template variable
     const agentFile = join(testDir, "echo-stdin.echo.md");
     await writeFile(agentFile, `---
 ---
+Input: {{ _stdin }}
 Process this input:
 `);
 
@@ -42,9 +43,7 @@ Process this input:
 
     expect(exitCode).toBe(0);
     expect(output).toContain("Process this input:");
-    expect(output).toContain("<stdin>");
     expect(output).toContain("hello world");
-    expect(output).toContain("</stdin>");
   });
 
   test("pipe: agent1 | agent2 (two-stage pipeline)", async () => {
@@ -55,11 +54,11 @@ Process this input:
 STAGE1_OUTPUT: processed
 `);
 
-    // Stage 2: Receives stage 1 output
+    // Stage 2: Receives stage 1 output via _stdin
     const agent2 = join(testDir, "stage2.echo.md");
     await writeFile(agent2, `---
 ---
-STAGE2_RECEIVED:
+STAGE2_RECEIVED: {{ _stdin }}
 `);
 
     const proc = spawn({
@@ -73,10 +72,9 @@ STAGE2_RECEIVED:
     const exitCode = await proc.exited;
 
     expect(exitCode).toBe(0);
-    // Stage 2 output should contain its body
+    // Stage 2 output should contain its body with stdin substituted
     expect(output).toContain("STAGE2_RECEIVED:");
-    // Stage 2 should have received Stage 1's output in stdin
-    expect(output).toContain("<stdin>");
+    // Stage 2 should have received Stage 1's output
     expect(output).toContain("STAGE1_OUTPUT: processed");
   });
 
@@ -90,12 +88,14 @@ STAGE2_RECEIVED:
     const agent2 = join(testDir, "three-stage2.echo.md");
     await writeFile(agent2, `---
 ---
+{{ _stdin }}
 [STEP2]
 `);
 
     const agent3 = join(testDir, "three-stage3.echo.md");
     await writeFile(agent3, `---
 ---
+{{ _stdin }}
 [STEP3_FINAL]
 `);
 
@@ -121,13 +121,13 @@ STAGE2_RECEIVED:
   test("template vars work in piped context", async () => {
     const agent = join(testDir, "template-pipe.echo.md");
     await writeFile(agent, `---
-args: [name]
+_name: ""
 ---
-Hello {{ name }}!
+Hello {{ _name }}! Input: {{ _stdin }}
 `);
 
     const proc = spawn({
-      cmd: ["bash", "-c", `echo "context" | bun run ${indexPath} ${agent} "World"`],
+      cmd: ["bash", "-c", `echo "context" | bun run ${indexPath} ${agent} --_name "World"`],
       stdout: "pipe",
       stderr: "pipe",
       env: { ...process.env, MA_COMMAND: "echo" },
@@ -138,7 +138,7 @@ Hello {{ name }}!
 
     expect(exitCode).toBe(0);
     expect(output).toContain("Hello World!");
-    expect(output).toContain("<stdin>");
+    expect(output).toContain("context");
   });
 
   test("frontmatter flags are passed correctly in pipe", async () => {
@@ -194,7 +194,7 @@ No stdin expected
     const agent = join(testDir, "multiline.echo.md");
     await writeFile(agent, `---
 ---
-Received:
+Received: {{ _stdin }}
 `);
 
     const multilineInput = "line1\nline2\nline3";

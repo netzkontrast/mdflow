@@ -28,22 +28,22 @@ md 01-hello.claude.md
 
 ## 2. The Configurator
 
-**Concept:** *Hijacked Flags & Defaults*
-Variables starting with `$` define defaults that can be overridden by CLI flags.
+**Concept:** *Template Variables & Defaults*
+Variables starting with `_` define defaults that can be overridden by CLI flags.
 
 **File:** `02-config.gemini.md`
 
 ```markdown
 ---
 model: gemini-1.5-flash
-# Default values
-$env: development
-$port: 8080
+# Template variables with defaults
+_env: development
+_port: 8080
 # Pass-through flags for Gemini
 temperature: 0.1
 json: true
 ---
-Generate a JSON configuration for a server running in **{{ env }}** mode on port **{{ port }}**.
+Generate a JSON configuration for a server running in **{{ _env }}** mode on port **{{ _port }}**.
 Return ONLY the raw JSON.
 ```
 
@@ -54,28 +54,29 @@ Return ONLY the raw JSON.
 md 02-config.gemini.md
 
 # Override with flags
-md 02-config.gemini.md --env production --port 3000
+md 02-config.gemini.md --_env production --_port 3000
 ```
 
 ---
 
 ## 3. The Logic Gate
 
-**Concept:** *Conditionals & Args*
-Use `args` to map positional arguments, and LiquidJS tags to change the prompt dynamically.
+**Concept:** *Conditionals & Template Variables*
+Use `_varname` to define template variables, and LiquidJS tags to change the prompt dynamically.
 
 **File:** `03-deploy.copilot.md`
 
 ```markdown
 ---
-args: [service_name, platform]
+_service_name: ""
+_platform: docker
 model: gpt-4
 ---
-Generate a deployment script for {{ service_name }}.
+Generate a deployment script for {{ _service_name }}.
 
-{% if platform == 'k8s' %}
+{% if _platform == 'k8s' %}
 Generate a Kubernetes Deployment YAML. Include liveness probes.
-{% elsif platform == 'aws' %}
+{% elsif _platform == 'aws' %}
 Generate an AWS Lambda SAM template.
 {% else %}
 Generate a simple Dockerfile.
@@ -85,7 +86,7 @@ Generate a simple Dockerfile.
 **Run it:**
 
 ```bash
-md 03-deploy.copilot.md "auth-service" "k8s"
+md 03-deploy.copilot.md --_service_name "auth-service" --_platform "k8s"
 ```
 
 ---
@@ -177,7 +178,7 @@ md 06-audit.gemini.md
 ## 7. The Unix Filter
 
 **Concept:** *Standard Input (Stdin)*
-`md` automatically wraps piped input in `<stdin>` tags, allowing agents to act as filters in Unix pipes.
+Piped input is available as the `_stdin` template variable, allowing agents to act as filters in Unix pipes.
 
 **File:** `07-describe-changes.claude.md`
 
@@ -185,7 +186,9 @@ md 06-audit.gemini.md
 ---
 model: haiku
 ---
-Generate a concise PR description for the changes in <stdin>.
+Generate a concise PR description for these changes:
+{{ _stdin }}
+
 Include a "Summary" and "Key Changes" section.
 ```
 
@@ -208,7 +211,8 @@ Pipe the output of one agent (The Summarizer) into another (The Critic).
 ---
 model: haiku
 ---
-Summarize the file content in <stdin> into a high-level architecture description.
+Summarize the file content into a high-level architecture description:
+{{ _stdin }}
 ```
 
 **File:** `08b-critique.claude.md`
@@ -217,7 +221,9 @@ Summarize the file content in <stdin> into a high-level architecture description
 ---
 model: opus
 ---
-You are a Principal Engineer. Critique the architecture description provided in <stdin>.
+You are a Principal Engineer. Critique this architecture description:
+{{ _stdin }}
+
 Identify bottlenecks and suggest scalability improvements.
 ```
 
@@ -257,10 +263,10 @@ An "Architect" agent generates a shell script that spawns multiple "Worker" agen
 
 ```markdown
 ---
-args: [task]
+_task: ""
 model: sonnet
 ---
-You are a worker bee. Implement this task in the current directory: {{ task }}
+You are a worker bee. Implement this task in the current directory: {{ _task }}
 Write the code to a file named `implementation.ts`.
 ```
 
@@ -268,14 +274,14 @@ Write the code to a file named `implementation.ts`.
 
 ```markdown
 ---
-args: [goal]
+_goal: ""
 model: opus
 ---
-You are a Fleet Commander. Break down the goal "{{ goal }}" into 2 parallel sub-tasks.
+You are a Fleet Commander. Break down the goal "{{ _goal }}" into 2 parallel sub-tasks.
 
 Generate a BASH script that:
 1. Creates 2 git worktrees (`wt-frontend` and `wt-backend`) on new branches.
-2. Inside each worktree, runs `md ../10-worker.claude.md "sub-task description"`.
+2. Inside each worktree, runs `md ../10-worker.claude.md --_task "sub-task description"`.
 3. Runs them in the background (`&`) and `wait`s for them to finish.
 
 Output ONLY the raw bash script.
@@ -286,7 +292,7 @@ Output ONLY the raw bash script.
 ```bash
 # 1. The Architect creates the plan and script
 # 2. We pipe the script to sh to execute the swarm immediately
-md 10-architect.claude.md "Build a login page with a fastify backend" | sh
+md 10-architect.claude.md --_goal "Build a login page with a fastify backend" | sh
 ```
 
 ---
@@ -300,22 +306,25 @@ While Part 1 focused on power and complexity, Part 2 focuses on **User Experienc
 ## 11. The Interactive Wizard
 
 **Concept:** *Variable Recovery*
-**UX Problem:** You wrote a prompt with variables, but you don't want to memorize the argument order.
+**UX Problem:** You wrote a prompt with variables, but you don't want to memorize the flags.
 **Solution:** If you forget to provide variables, `md` detects them and turns the CLI into an interactive form.
 
 **File:** `11-onboarding.claude.md`
 
 ```markdown
 ---
+_name: ""
+_department: ""
+_manager: ""
 model: sonnet
 ---
-Welcome to the team, {{ name }}!
+Welcome to the team, {{ _name }}!
 
-Please generate a warm onboarding email for a new engineer joining the {{ department }} team.
-Mention that their manager is {{ manager }}.
+Please generate a warm onboarding email for a new engineer joining the {{ _department }} team.
+Mention that their manager is {{ _manager }}.
 ```
 
-**Run it (without arguments):**
+**Run it (without flags):**
 
 ```bash
 md 11-onboarding.claude.md
@@ -325,9 +334,9 @@ md 11-onboarding.claude.md
 
 ```text
 Missing required variables. Please provide values:
-? name: Alice
-? department: Platform
-? manager: Bob
+? _name: Alice
+? _department: Platform
+? _manager: Bob
 ```
 
 *UX Benefit: Turns static scripts into interactive tools automatically.*
@@ -400,9 +409,9 @@ chmod +x daily-report
 
 ## 14. The "Knobs & Dials" Interface
 
-**Concept:** *Hijacked Configuration ($vars)*
+**Concept:** *Template Variables with Defaults*
 **UX Problem:** You want to expose configuration settings (defaults) that users can easily override via flags.
-**Solution:** Variables starting with `$` in the frontmatter define defaults that are "hijacked" (consumed) by the template system.
+**Solution:** Variables starting with `_` in the frontmatter define defaults that can be overridden via `--_varname` flags.
 
 **File:** `14-translator.gpt.md`
 
@@ -411,13 +420,14 @@ chmod +x daily-report
 command: openai
 model: gpt-4o
 # Default configuration
-$lang: Spanish
-$tone: Professional
+_lang: Spanish
+_tone: Professional
+_text: ""
 ---
-Translate the following text into {{ lang }}. Keep the tone {{ tone }}.
+Translate the following text into {{ _lang }}. Keep the tone {{ _tone }}.
 
 <text>
-{{ $1 }}
+{{ _text }}
 </text>
 ```
 
@@ -425,10 +435,10 @@ Translate the following text into {{ lang }}. Keep the tone {{ tone }}.
 
 ```bash
 # Use defaults
-md 14-translator.gpt.md "Hello World"
+md 14-translator.gpt.md --_text "Hello World"
 
 # Tweak the knobs via flags
-md 14-translator.gpt.md "Hello World" --lang "Pirate" --tone "Aggressive"
+md 14-translator.gpt.md --_text "Hello World" --_lang "Pirate" --_tone "Aggressive"
 ```
 
 *UX Benefit: Creates a stable CLI interface for your prompts.*
@@ -588,14 +598,14 @@ md logs
 
 ```markdown
 ---
-args: [goal]
+_goal: ""
 model: sonnet
 ---
 I want to create a new markdown-agent file.
-Goal: {{ goal }}
+Goal: {{ _goal }}
 
 Write the full content of a `.md` file that accomplishes this.
-Include appropriate frontmatter defaults (model, args).
+Include appropriate frontmatter defaults (model, _varname template variables).
 Use standard `md` features like `@imports` if the goal implies reading code.
 
 Output ONLY the raw markdown code block.
@@ -604,7 +614,7 @@ Output ONLY the raw markdown code block.
 **Run it:**
 
 ```bash
-md 20-agent-smith.claude.md "Review my rust code" > review-rust.claude.md
+md 20-agent-smith.claude.md --_goal "Review my rust code" > review-rust.claude.md
 ```
 
 *UX Benefit: The tool helps you build the tool.*

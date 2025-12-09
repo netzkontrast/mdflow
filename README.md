@@ -139,27 +139,42 @@ mdflow task.md -c gemini
 mdflow task.claude.md --command gemini  # Runs gemini, not claude
 ```
 
-### `$varname` Fields
+### `_varname` Template Variables
 
-Frontmatter fields starting with `$` (except `$1`, `$2`...) hijack their corresponding CLI flags:
+Frontmatter fields starting with `_` (except internal keys like `_interactive`, `_cwd`, `_subcommand`) define template variables:
 
 ```yaml
 ---
-$feature_name: Authentication   # Default value
-$target_dir: src/features       # Default value
+_feature_name: Authentication   # Default value
+_target_dir: src/features       # Default value
 ---
-Build {{ feature_name }} in {{ target_dir }}.
+Build {{ _feature_name }} in {{ _target_dir }}.
 ```
 
 ```bash
 # Use defaults
 mdflow create.claude.md
 
-# Override with CLI flags (hijacked, not passed to command)
-mdflow create.claude.md --feature_name "Payments" --target_dir "src/billing"
+# Override with CLI flags (consumed by mdflow, not passed to command)
+mdflow create.claude.md --_feature_name "Payments" --_target_dir "src/billing"
 ```
 
-The `--feature_name` and `--target_dir` flags are consumed by mdflow for template substitution—they won't be passed to the command.
+The `--_feature_name` and `--_target_dir` flags are consumed by mdflow for template substitution—they won't be passed to the command.
+
+### `_stdin` - Piped Input
+
+When you pipe content to mdflow, it's available as the `_stdin` template variable:
+
+```yaml
+---
+model: haiku
+---
+Summarize this: {{ _stdin }}
+```
+
+```bash
+cat README.md | mdflow summarize.claude.md
+```
 
 ---
 
@@ -169,12 +184,13 @@ The `--feature_name` and `--target_dir` flags are consumed by mdflow for templat
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `args` | string[] | Named positional arguments for template variables |
+| `_varname` | string | Template variable with default value (use `{{ _varname }}` in body) |
 | `env` | object | Set process environment variables |
 | `env` | string[] | Pass as `--env` flags to command |
 | `$1`, `$2`... | string | Map positional args to flags (e.g., `$1: prompt`) |
 | `_interactive` / `_i` | boolean | Enable interactive mode (overrides print-mode defaults) |
 | `_subcommand` | string/string[] | Prepend subcommand(s) to CLI args |
+| `_cwd` | string | Override working directory for inline commands |
 
 ### All Other Keys → CLI Flags
 
@@ -311,19 +327,20 @@ Explain this code.
 
 This runs: `copilot --silent --interactive "Explain this code."`
 
-### Template Variables with Args
+### Template Variables
 
 ```markdown
 # create-feature.claude.md
 ---
-args: [feature_name, target_dir]
+_feature_name: ""
+_target_dir: src/features
 model: sonnet
 ---
-Create a new feature called "{{ feature_name }}" in {{ target_dir }}.
+Create a new feature called "{{ _feature_name }}" in {{ _target_dir }}.
 ```
 
 ```bash
-mdflow create-feature.claude.md "Auth" "src/features"
+mdflow create-feature.claude.md --_feature_name "Auth"
 ```
 
 ### Environment Variables
@@ -580,6 +597,7 @@ git diff | review.claude.md      # Review staged changes
 - Template system uses [LiquidJS](https://liquidjs.com/) - supports conditionals, loops, and filters
 - Logs are always written to `~/.mdflow/logs/<agent-name>/` for debugging
 - Use `--logs` to show the log directory
-- Stdin is wrapped in `<stdin>` tags and prepended to the prompt
+- Piped input is available as `{{ _stdin }}` template variable
+- Template variables use `_` prefix: `_name` in frontmatter → `{{ _name }}` in body → `--_name` CLI flag
 - Remote URLs are cached at `~/.mdflow/cache/` with 1-hour TTL (use `--no-cache` to bypass)
 - Imports inside code blocks (``` or `) are ignored by the parser
