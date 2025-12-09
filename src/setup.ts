@@ -7,20 +7,48 @@ const SHELL_SNIPPET = `
 # mdflow: Treat .md files as executable agents
 alias -s md='_handle_md'
 _handle_md() {
-  local file="$1"
+  local input="$1"
   shift
-  # Pass file and any remaining args (--model, --silent, etc.) to handler
-  if command -v mdflow &>/dev/null; then
-    mdflow "$file" "$@"
+
+  # Resolve input: URLs pass through, files check current dir then PATH
+  local resolved=""
+  if [[ "$input" =~ ^https?:// ]]; then
+    # URL - pass through as-is
+    resolved="$input"
+  elif [[ -f "$input" ]]; then
+    resolved="$input"
   else
-    echo "mdflow not installed. Install with: bun add -g mdflow"
-    echo "Attempting to install now..."
-    if command -v bun &>/dev/null; then
-      bun add -g mdflow && mdflow "$file" "$@"
-    elif command -v npm &>/dev/null; then
-      npm install -g mdflow && mdflow "$file" "$@"
+    # Search PATH for the .md file
+    local dir
+    for dir in \${(s/:/)PATH}; do
+      if [[ -f "$dir/$input" ]]; then
+        resolved="$dir/$input"
+        break
+      fi
+    done
+  fi
+
+  if [[ -z "$resolved" ]]; then
+    echo "File not found: $input (checked current dir and PATH)"
+    return 1
+  fi
+
+  # Pass resolved file/URL and any remaining args to handler
+  if command -v mdflow &>/dev/null; then
+    mdflow "$resolved" "$@"
+  else
+    echo "mdflow not installed."
+    read -q "REPLY?Would you like to run \\\`bun add -g mdflow\\\` now? [y/N] "
+    echo
+    if [[ "$REPLY" =~ ^[Yy]$ ]]; then
+      bun add -g mdflow
+      echo
+      read -q "REPLY?Would you like to attempt to run this again? [y/N] "
+      echo
+      if [[ "$REPLY" =~ ^[Yy]$ ]]; then
+        mdflow "$resolved" "$@"
+      fi
     else
-      echo "Neither bun nor npm found. Please install mdflow manually."
       return 1
     fi
   fi
@@ -41,9 +69,9 @@ export PATH="$HOME/.mdflow:$PATH"
 # This function runs on each directory change to update PATH dynamically
 _mdflow_chpwd() {
   # Remove project .mdflow paths from PATH, but keep ~/.mdflow (user agents)
-  # Project paths have format: /path/to/project/.mdflow (more than 3 segments)
-  # User path has format: /Users/name/.mdflow (exactly 3 segments)
-  PATH=$(echo "$PATH" | tr ':' '\\n' | grep -vE '^(/[^/]+){3,}/\\.mdflow$' | tr '\\n' ':' | sed 's/:$//')
+  # Project paths: /path/to/project/.mdflow (4+ segments)
+  # User path: /Users/name/.mdflow (3 segments) - keep this one
+  PATH=$(echo "$PATH" | tr ':' '\\n' | grep -vE '^(/[^/]+){4,}/\\.mdflow$' | tr '\\n' ':' | sed 's/:$//')
   # Add current directory's .mdflow if it exists
   if [[ -d ".mdflow" ]]; then
     export PATH="$PWD/.mdflow:$PATH"
