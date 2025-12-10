@@ -800,15 +800,22 @@ async function processCommandInline(
   const commandCwd = importCtx?.invocationCwd ?? currentFileDir;
 
   try {
-    const result = Bun.spawnSync(["sh", "-c", actualCommand], {
+    const proc = Bun.spawn(["sh", "-c", actualCommand], {
       cwd: commandCwd,
       stdout: "pipe",
       stderr: "pipe",
       env: env as Record<string, string>,
     });
 
-    const stdout = result.stdout.toString().trim();
-    const stderr = result.stderr.toString().trim();
+    // Wait for completion and collect output asynchronously
+    const [stdoutBytes, stderrBytes] = await Promise.all([
+      new Response(proc.stdout).arrayBuffer(),
+      new Response(proc.stderr).arrayBuffer(),
+    ]);
+    await proc.exited;
+
+    const stdout = new TextDecoder().decode(stdoutBytes).trim();
+    const stderr = new TextDecoder().decode(stderrBytes).trim();
 
     // Combine stdout and stderr (stderr first if both exist)
     let output: string;
