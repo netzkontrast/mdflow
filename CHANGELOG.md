@@ -1,3 +1,10 @@
+## [2.21.1](https://github.com/johnlindquist/mdflow/compare/v2.21.0...v2.21.1) (2025-12-10)
+
+
+### Bug Fixes
+
+* enable true parallel execution of inline commands ([8bd0421](https://github.com/johnlindquist/mdflow/commit/8bd0421682729b3646a569f17f23a92f90d9f9ba))
+
 # [2.21.0](https://github.com/johnlindquist/mdflow/compare/v2.20.0...v2.21.0) (2025-12-10)
 
 
