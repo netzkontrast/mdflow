@@ -1,3 +1,10 @@
+# [2.26.0](https://github.com/johnlindquist/mdflow/compare/v2.25.1...v2.26.0) (2025-12-11)
+
+
+### Features
+
+* support --_key=value syntax for template variables ([f467342](https://github.com/johnlindquist/mdflow/commit/f4673422ff344243b711d4d8c98794259b61d2e5))
+
 ## [2.25.1](https://github.com/johnlindquist/mdflow/compare/v2.25.0...v2.25.1) (2025-12-11)
 
 
