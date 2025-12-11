@@ -1,3 +1,10 @@
+# [2.25.0](https://github.com/johnlindquist/mdflow/compare/v2.24.0...v2.25.0) (2025-12-11)
+
+
+### Features
+
+* allow --_varname CLI flags without frontmatter declaration ([42af75a](https://github.com/johnlindquist/mdflow/commit/42af75aed65e4be2ce285dc6648caedf660455cc))
+
 # [2.24.0](https://github.com/johnlindquist/mdflow/compare/v2.23.0...v2.24.0) (2025-12-11)
 
 
