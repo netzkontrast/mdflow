@@ -24,7 +24,8 @@ import {
   getImportLogger, getCurrentLogPath,
 } from "./logger";
 import { isDomainTrusted, promptForTrust, addTrustedDomain, extractDomain } from "./trust";
-import { dirname, resolve } from "path";
+import { dirname, resolve, join } from "path";
+import { homedir } from "os";
 import { input } from "@inquirer/prompts";
 import { exceedsLimit, StdinSizeLimitError } from "./limits";
 import { countTokens } from "./tokenizer";
@@ -88,6 +89,48 @@ export class CliRunner {
   private printErrorWithLogPath(message: string, logPath: string | null): void {
     this.writeStderr(`\n${message}`);
     if (logPath) this.writeStderr(`   Detailed logs: ${logPath}`);
+  }
+
+  /**
+   * Resolve file path by checking multiple locations in order:
+   * 1. As-is (absolute path or relative to cwd)
+   * 2. Project agents: ./.mdflow/<filename>
+   * 3. User agents: ~/.mdflow/<filename>
+   * 4. PATH directories (for files without path separators)
+   */
+  private async resolveFilePath(filePath: string): Promise<string> {
+    // 1. Try as-is (could be absolute or relative from cwd)
+    if (await this.env.fs.exists(filePath)) {
+      return filePath;
+    }
+
+    // Only search directories for simple filenames (no path separators)
+    if (!filePath.includes("/")) {
+      // 2. Try ./.mdflow/
+      const projectPath = join(this.cwd, ".mdflow", filePath);
+      if (await this.env.fs.exists(projectPath)) {
+        return projectPath;
+      }
+
+      // 3. Try ~/.mdflow/
+      const userPath = join(homedir(), ".mdflow", filePath);
+      if (await this.env.fs.exists(userPath)) {
+        return userPath;
+      }
+
+      // 4. Try $PATH directories
+      const pathDirs = (this.processEnv.PATH || "").split(":");
+      for (const dir of pathDirs) {
+        if (!dir) continue;
+        const pathFilePath = join(dir, filePath);
+        if (await this.env.fs.exists(pathFilePath)) {
+          return pathFilePath;
+        }
+      }
+    }
+
+    // Not found anywhere - return original for error message
+    return filePath;
   }
 
   async run(argv: string[]): Promise<CliRunResult> {
@@ -182,6 +225,9 @@ export class CliRunner {
       }
       localFilePath = remoteResult.localPath!;
       isRemote = true;
+    } else {
+      // Resolve local file path by checking multiple directories
+      localFilePath = await this.resolveFilePath(filePath);
     }
 
     // Signal handling
