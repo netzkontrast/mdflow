@@ -377,6 +377,23 @@ export class CliRunner {
       }
     }
 
+    // Also extract any --_varname CLI flags not declared in frontmatter
+    // This allows optional template vars without frontmatter declaration
+    for (let i = remaining.length - 1; i >= 0; i--) {
+      const arg = remaining[i];
+      if (arg.startsWith("--_") && !internalKeys.has(arg.slice(2))) {
+        const key = arg.slice(2); // Remove --
+        if (i + 1 < remaining.length && !remaining[i + 1].startsWith("-")) {
+          templateVars[key] = remaining[i + 1];
+          remaining.splice(i, 2);
+        } else {
+          // Boolean flag without value
+          templateVars[key] = "true";
+          remaining.splice(i, 1);
+        }
+      }
+    }
+
     // Inject positional CLI args as template variables (_1, _2, etc.)
     // First, separate flags from positional args in remaining
     const positionalCliArgs: string[] = [];
