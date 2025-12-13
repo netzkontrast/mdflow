@@ -39,11 +39,12 @@ export interface AgentFrontmatter {
   [key: `$${number}`]: string;
 
   /**
-   * Named template variables ($varname)
-   * Reads value from --varname CLI flag and makes it available as {{ varname }}
-   * Example: $feature_name: → reads --feature_name value → {{ feature_name }}
+   * Template variables (_varname)
+   * Underscore-prefixed keys are template variables, not passed to CLI.
+   * Available in body as {{ _varname }}, can be overridden via --_varname CLI flag.
+   * Example: _name: "default" → {{ _name }} in body → --_name "override"
    */
-  [key: `$${string}`]: string | undefined;
+  [key: `_${string}`]: string | undefined;
 
   /**
    * All other keys are passed directly as CLI flags to the command.
