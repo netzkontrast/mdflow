@@ -202,7 +202,8 @@ async function loadConfigFile(filePath: string, throwOnInvalid: boolean = false)
     return validation.data as GlobalConfig;
   } catch (err) {
     if (throwOnInvalid) throw err;
-    // Silently fail on parse errors (file might be malformed)
+    // Log parse errors instead of failing silently
+    console.warn(`Warning: Failed to parse config file ${filePath}: ${err instanceof Error ? err.message : String(err)}`);
     return null;
   }
 }
@@ -260,8 +261,9 @@ export async function loadGlobalConfig(): Promise<GlobalConfig> {
       // Merge with built-in defaults (user config takes priority)
       return mergeConfigs(BUILTIN_DEFAULTS, parsed);
     }
-  } catch {
-    // Fall back to built-in defaults on parse error
+  } catch (err) {
+    // Log error and fall back to built-in defaults
+    console.warn(`Warning: Failed to load global config ${CONFIG_FILE}: ${err instanceof Error ? err.message : String(err)}`);
   }
   // Return a deep clone to ensure callers get an independent copy
   return mergeConfigs(BUILTIN_DEFAULTS, {});
