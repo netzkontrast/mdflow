@@ -81,6 +81,7 @@ const SYSTEM_KEYS = new Set([
   "_subcommand",
   "_cwd",
   "_dry-run",
+  "_edit",
   "_trust",
   "_no-cache",
 
