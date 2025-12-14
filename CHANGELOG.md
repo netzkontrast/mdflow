@@ -1,3 +1,10 @@
+## [2.31.1](https://github.com/johnlindquist/mdflow/compare/v2.31.0...v2.31.1) (2025-12-14)
+
+
+### Bug Fixes
+
+* log errors instead of silent failures in config.ts ([8b2e738](https://github.com/johnlindquist/mdflow/commit/8b2e7385c1a41fd8035e2744904c79cb2ed836ed))
+
 # [2.31.0](https://github.com/johnlindquist/mdflow/compare/v2.30.1...v2.31.0) (2025-12-14)
 
 
