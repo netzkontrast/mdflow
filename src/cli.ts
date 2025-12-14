@@ -5,6 +5,7 @@ import { homedir } from "os";
 import { EarlyExitRequest, UserCancelledError } from "./errors";
 import { showFileSelectorWithPreview, type FileSelectorSelection } from "./file-selector";
 import { startSpinner } from "./spinner";
+import { loadHistory, getFrecencyScore } from "./history";
 
 export interface CliArgs {
   filePath: string;
@@ -26,6 +27,8 @@ export interface AgentFile {
   name: string;
   path: string;
   source: string;
+  /** Frecency score for sorting (higher = more frequently/recently used) */
+  frecency?: number;
 }
 
 /**
@@ -155,7 +158,7 @@ const USER_AGENTS_DIR = join(homedir(), ".mdflow");
  * 3. User-level: ~/.mdflow/
  * 4. $PATH directories
  *
- * Returns files sorted by source priority (earlier sources take precedence)
+ * Returns files sorted by frecency (most frequently/recently used first)
  */
 export async function findAgentFiles(): Promise<AgentFile[]> {
   const files: AgentFile[] = [];
@@ -163,13 +166,21 @@ export async function findAgentFiles(): Promise<AgentFile[]> {
 
   const glob = new Glob("*.md");
 
+  // Load history for frecency scoring
+  await loadHistory();
+
   // 1. Current directory
   try {
     for await (const file of glob.scan({ cwd: process.cwd(), absolute: true })) {
       const normalizedPath = normalizePath(file);
       if (!seenPaths.has(normalizedPath)) {
         seenPaths.add(normalizedPath);
-        files.push({ name: basename(file), path: normalizedPath, source: "cwd" });
+        files.push({
+          name: basename(file),
+          path: normalizedPath,
+          source: "cwd",
+          frecency: getFrecencyScore(normalizedPath),
+        });
       }
     }
   } catch {
@@ -183,7 +194,12 @@ export async function findAgentFiles(): Promise<AgentFile[]> {
       const normalizedPath = normalizePath(file);
       if (!seenPaths.has(normalizedPath)) {
         seenPaths.add(normalizedPath);
-        files.push({ name: basename(file), path: normalizedPath, source: ".mdflow" });
+        files.push({
+          name: basename(file),
+          path: normalizedPath,
+          source: ".mdflow",
+          frecency: getFrecencyScore(normalizedPath),
+        });
       }
     }
   } catch {
@@ -196,7 +212,12 @@ export async function findAgentFiles(): Promise<AgentFile[]> {
       const normalizedPath = normalizePath(file);
       if (!seenPaths.has(normalizedPath)) {
         seenPaths.add(normalizedPath);
-        files.push({ name: basename(file), path: normalizedPath, source: "~/.mdflow" });
+        files.push({
+          name: basename(file),
+          path: normalizedPath,
+          source: "~/.mdflow",
+          frecency: getFrecencyScore(normalizedPath),
+        });
       }
     }
   } catch {
@@ -212,13 +233,25 @@ export async function findAgentFiles(): Promise<AgentFile[]> {
         const normalizedPath = normalizePath(file);
         if (!seenPaths.has(normalizedPath)) {
           seenPaths.add(normalizedPath);
-          files.push({ name: basename(file), path: normalizedPath, source: dir });
+          files.push({
+            name: basename(file),
+            path: normalizedPath,
+            source: dir,
+            frecency: getFrecencyScore(normalizedPath),
+          });
         }
       }
     } catch {
       // Skip directories that don't exist or can't be read
     }
   }
+
+  // Sort by frecency (highest first), then by name as tiebreaker
+  files.sort((a, b) => {
+    const frecencyDiff = (b.frecency ?? 0) - (a.frecency ?? 0);
+    if (frecencyDiff !== 0) return frecencyDiff;
+    return a.name.localeCompare(b.name);
+  });
 
   return files;
 }

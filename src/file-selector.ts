@@ -195,31 +195,53 @@ function formatPreviewContent(
  * Score a file against a filter.
  * Higher = better match. 0 = no match.
  * 100 = Exact name, 80 = Starts with, 60 = Contains name, 40 = Path match
+ *
+ * Frecency is added as a small bonus (capped at 15) to boost frequently/recently
+ * used files without overriding better string matches.
  */
 function getMatchScore(filter: string, file: AgentFile): number {
-  if (!filter) return 1;
+  const frecencyBonus = Math.min(15, file.frecency ?? 0);
+
+  // Empty query: return base score + frecency to maintain frecency sort
+  if (!filter) return 1 + frecencyBonus;
+
   const search = filter.toLowerCase();
   const name = file.name.toLowerCase();
   const path = file.path.toLowerCase();
 
-  if (name === search) return 100;
-  if (name.startsWith(search)) return 80;
-  if (name.includes(search)) return 60;
+  let score = 0;
 
-  // Multi-term path search (e.g. "auth login")
-  const terms = search.split(/\s+/);
-  if (terms.every((t) => path.includes(t))) return 40;
-
-  // Fuzzy match as fallback (all chars in order)
-  let filterIdx = 0;
-  for (let i = 0; i < name.length && filterIdx < search.length; i++) {
-    if (name[i] === search[filterIdx]) {
-      filterIdx++;
+  if (name === search) {
+    score = 100;
+  } else if (name.startsWith(search)) {
+    score = 80;
+  } else if (name.includes(search)) {
+    score = 60;
+  } else {
+    // Multi-term path search (e.g. "auth login")
+    const terms = search.split(/\s+/);
+    if (terms.every((t) => path.includes(t))) {
+      score = 40;
+    } else {
+      // Fuzzy match as fallback (all chars in order)
+      let filterIdx = 0;
+      for (let i = 0; i < name.length && filterIdx < search.length; i++) {
+        if (name[i] === search[filterIdx]) {
+          filterIdx++;
+        }
+      }
+      if (filterIdx === search.length) {
+        score = 20;
+      }
     }
   }
-  if (filterIdx === search.length) return 20;
 
-  return 0;
+  // Add frecency bonus if we have a match
+  if (score > 0) {
+    score += frecencyBonus;
+  }
+
+  return score;
 }
 
 /**

@@ -39,6 +39,7 @@ import {
   NetworkError, SecurityError, ConfigurationError, TemplateError, ImportError,
 } from "./errors";
 import type { SystemEnvironment } from "./system-environment";
+import { recordUsage } from "./history";
 
 /** Result from CliRunner.run() */
 export interface CliRunResult {
@@ -296,6 +297,12 @@ export class CliRunner {
     });
 
     getCommandLogger().info({ exitCode: runResult.exitCode }, "Command completed");
+
+    // Record usage for frecency tracking (skip for failed runs)
+    if (runResult.exitCode === 0) {
+      recordUsage(localFilePath).catch(() => {}); // Fire and forget
+    }
+
     if (isRemote) await cleanupRemote(localFilePath);
 
     if (runResult.exitCode !== 0) {
