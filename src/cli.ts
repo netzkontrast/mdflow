@@ -148,6 +148,8 @@ md-specific flags (consumed, not passed to command):
   --_dry-run        Show resolved command and prompt without executing
   --_trust          Skip trust prompt for remote URLs (TOFU bypass)
   --_no-cache       Force fresh fetch for remote URLs (bypass cache)
+  --_context        Show context tree and exit (no execution)
+  --_quiet          Skip context dashboard display before execution
 
 Without arguments:
   md              Interactive agent picker (from ./.mdflow/, ~/.mdflow/, etc.)

@@ -22,6 +22,9 @@ import {
   expandContentImports, expandCommandImports,
   hasContentImports, hasCommandImports
 } from "./imports";
+import {
+  analyzeContext, printDashboard, shouldShowDashboard
+} from "./context-dashboard";
 import { loadEnvFiles } from "./env";
 import {
   loadGlobalConfig, getCommandDefaults, applyDefaults, applyInteractiveMode,
@@ -302,8 +305,27 @@ export class CliRunner {
 
     // Parse CLI flags
     const parsed = this.parseFlags(passthroughArgs);
+
+    // Context-only mode: show dashboard and exit without executing
+    if (parsed.contextOnly) {
+      if (shouldShowDashboard(rawBody)) {
+        const analysis = await analyzeContext(localFilePath, rawBody, fileDir);
+        printDashboard(analysis);
+      } else {
+        this.writeStderr("No imports found in this agent file.");
+      }
+      if (isRemote) await cleanupRemote(localFilePath);
+      throw new EarlyExitRequest();
+    }
+
     const { command, frontmatter, templateVars, finalBody, args, positionalMappings } =
       await this.processAgent(localFilePath, baseFrontmatter, rawBody, stdinContent, parsed);
+
+    // Show context dashboard before execution (unless --_quiet)
+    if (!parsed.quiet && shouldShowDashboard(rawBody)) {
+      const analysis = await analyzeContext(localFilePath, rawBody, fileDir);
+      printDashboard(analysis);
+    }
 
     // Dry run
     if (parsed.dryRun) {
@@ -353,6 +375,7 @@ export class CliRunner {
     let remainingArgs = [...passthroughArgs];
     let commandFromCli: string | undefined;
     let dryRun = false, trustFlag = false, interactiveFromCli = false, noCache = false;
+    let contextOnly = false, quiet = false;
     let cwdFromCli: string | undefined;
 
     const cmdIdx = remainingArgs.findIndex((a) => a === "--_command" || a === "-_c");
@@ -373,8 +396,13 @@ export class CliRunner {
       cwdFromCli = remainingArgs[cwdIdx + 1];
       remainingArgs.splice(cwdIdx, 2);
     }
+    // Context dashboard flags
+    const contextIdx = remainingArgs.indexOf("--_context");
+    if (contextIdx !== -1) { contextOnly = true; remainingArgs.splice(contextIdx, 1); }
+    const quietIdx = remainingArgs.indexOf("--_quiet");
+    if (quietIdx !== -1) { quiet = true; remainingArgs.splice(quietIdx, 1); }
 
-    return { remainingArgs, commandFromCli, dryRun, trustFlag, interactiveFromCli, cwdFromCli, noCache };
+    return { remainingArgs, commandFromCli, dryRun, trustFlag, interactiveFromCli, cwdFromCli, noCache, contextOnly, quiet };
   }
 
   private async processAgent(
