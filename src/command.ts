@@ -82,6 +82,7 @@ const SYSTEM_KEYS = new Set([
   "_dry-run",
   "_trust",
   "_no-cache",
+  "_no-menu", // Disable post-run action menu
 
   // Command override
   "_command",

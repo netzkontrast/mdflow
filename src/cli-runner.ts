@@ -328,8 +328,13 @@ export class CliRunner {
     const preview = formatCommandPreview(command, finalRunArgs);
     startSpinner(preview);
 
+    // Determine if we should capture output for post-run menu
+    // Only capture when: TTY, not piped, menu not disabled
+    const shouldShowMenu = this.isStdinTTY && !parsed.noMenu;
+    const captureMode = shouldShowMenu ? "tee" as const : false;
+
     const runResult = await runCommand({
-      command, args: finalRunArgs, positionals: [finalBody], positionalMappings, captureOutput: false, env: extractEnvVars(frontmatter),
+      command, args: finalRunArgs, positionals: [finalBody], positionalMappings, captureOutput: captureMode, env: extractEnvVars(frontmatter),
     });
 
     getCommandLogger().info({ exitCode: runResult.exitCode }, "Command completed");
@@ -345,6 +350,19 @@ export class CliRunner {
       this.printErrorWithLogPath(`Agent exited with code ${runResult.exitCode}`, logPath);
     }
 
+    // Show post-run action menu if enabled and we have output
+    if (shouldShowMenu && runResult.stdout) {
+      try {
+        const { showPostRunMenu, executePostRunAction } = await import("./post-run-menu");
+        const menuResult = await showPostRunMenu(runResult.stdout);
+        if (menuResult && menuResult.action !== "exit") {
+          await executePostRunAction(menuResult, runResult.stdout);
+        }
+      } catch {
+        // Menu cancelled or failed, just continue
+      }
+    }
+
     logger.info({ exitCode: runResult.exitCode }, "Session ended");
     return { exitCode: runResult.exitCode, logPath };
   }
@@ -352,7 +370,7 @@ export class CliRunner {
   private parseFlags(passthroughArgs: string[]) {
     let remainingArgs = [...passthroughArgs];
     let commandFromCli: string | undefined;
-    let dryRun = false, trustFlag = false, interactiveFromCli = false, noCache = false;
+    let dryRun = false, trustFlag = false, interactiveFromCli = false, noCache = false, noMenu = false;
     let cwdFromCli: string | undefined;
 
     const cmdIdx = remainingArgs.findIndex((a) => a === "--_command" || a === "-_c");
@@ -366,6 +384,8 @@ export class CliRunner {
     if (trustIdx !== -1) { trustFlag = true; remainingArgs.splice(trustIdx, 1); }
     const noCacheIdx = remainingArgs.indexOf("--_no-cache");
     if (noCacheIdx !== -1) { noCache = true; remainingArgs.splice(noCacheIdx, 1); }
+    const noMenuIdx = remainingArgs.indexOf("--_no-menu");
+    if (noMenuIdx !== -1) { noMenu = true; remainingArgs.splice(noMenuIdx, 1); }
     const intIdx = remainingArgs.findIndex((a) => a === "--_interactive" || a === "-_i");
     if (intIdx !== -1) { interactiveFromCli = true; remainingArgs.splice(intIdx, 1); }
     const cwdIdx = remainingArgs.findIndex((a) => a === "--_cwd");
@@ -374,7 +394,7 @@ export class CliRunner {
       remainingArgs.splice(cwdIdx, 2);
     }
 
-    return { remainingArgs, commandFromCli, dryRun, trustFlag, interactiveFromCli, cwdFromCli, noCache };
+    return { remainingArgs, commandFromCli, dryRun, trustFlag, interactiveFromCli, cwdFromCli, noCache, noMenu };
   }
 
   private async processAgent(
