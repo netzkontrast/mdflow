@@ -3,14 +3,24 @@ import { realpathSync } from "fs";
 import { chmod, unlink } from "fs/promises";
 import { homedir, platform, tmpdir } from "os";
 import { Glob } from "bun";
-import ignore from "ignore";
+// Lazy-load heavy dependencies for cold start optimization
 import { resilientFetch } from "./fetch";
 import { MAX_INPUT_SIZE, FileSizeLimitError, exceedsLimit } from "./limits";
-import { countTokens, getContextLimit } from "./tokenizer";
+import { estimateTokens, getContextLimit, countTokensAsync } from "./tokenizer";
 import { Semaphore, DEFAULT_CONCURRENCY_LIMIT } from "./concurrency";
 import { substituteTemplateVars } from "./template";
 import { parseImports as parseImportsSafe, hasImportsInContent } from "./imports-parser";
 import type { ImportAction, ExecutableCodeFenceAction } from "./imports-types";
+
+// Lazy-load ignore package (only needed for glob imports)
+let _ignore: typeof import("ignore").default | null = null;
+async function getIgnore() {
+  if (!_ignore) {
+    const mod = await import("ignore");
+    _ignore = mod.default;
+  }
+  return _ignore;
+}
 
 /**
  * TTY Dashboard for monitoring parallel command execution
@@ -441,8 +451,10 @@ function extractSymbol(content: string, symbolName: string): string {
 
 /**
  * Load .gitignore patterns from directory and parents
+ * Lazy-loads the ignore package on first use
  */
-async function loadGitignore(dir: string): Promise<ReturnType<typeof ignore>> {
+async function loadGitignore(dir: string): Promise<ReturnType<Awaited<ReturnType<typeof getIgnore>>>> {
+  const ignore = await getIgnore();
   const ig = ignore();
 
   // Always ignore common patterns
@@ -690,19 +702,31 @@ async function processGlobImport(
   // Sort by path for consistent ordering
   files.sort((a, b) => a.path.localeCompare(b.path));
 
-  // Count tokens using real tokenizer
-  const allContent = files.map((f) => f.content).join("\n");
-  const actualTokens = countTokens(allContent);
-
   // Get context limit (use env vars for model/limit override)
   const contextLimit = getContextLimit(
     process.env.MA_MODEL,
     Number(process.env.MA_CONTEXT_WINDOW) || undefined
   );
 
+  // Use cheap token estimate first (chars / 4) for fast bailout
+  const allContent = files.map((f) => f.content).join("\n");
+  const estimatedTokens = estimateTokens(allContent);
+
+  // Fast path: if estimate is well within limits, skip expensive tokenization
+  let actualTokens: number;
+  const needsAccurateCount = estimatedTokens > contextLimit * 0.7; // Near limit - need accurate count
+
+  if (needsAccurateCount) {
+    // Near the limit - do accurate count (lazy-loads tokenizer)
+    actualTokens = await countTokensAsync(allContent);
+  } else {
+    // Well under limit - use estimate
+    actualTokens = estimatedTokens;
+  }
+
   // Always log glob expansion to stderr for visibility
   console.error(
-    `[imports] Expanding ${pattern}: ${files.length} files (~${actualTokens.toLocaleString()} tokens)`
+    `[imports] Expanding ${pattern}: ${files.length} files (~${actualTokens.toLocaleString()} tokens${needsAccurateCount ? "" : " est"})`
   );
 
   // Error threshold - use dynamic context limit

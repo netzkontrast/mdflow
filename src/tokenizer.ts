@@ -3,9 +3,33 @@
  *
  * Uses gpt-tokenizer for accurate token counting instead of length/4 heuristic.
  * Provides model-specific context window limits with config override support.
+ *
+ * Cold start optimization: Lazy-loads gpt-tokenizer only when accurate counts
+ * are needed. Uses cheap char/4 estimate for early bailout checks.
  */
 
-import { encode } from "gpt-tokenizer";
+// Lazy-load gpt-tokenizer only when accurate counting is needed
+let _encode: typeof import("gpt-tokenizer").encode | null = null;
+
+async function getEncoder() {
+  if (!_encode) {
+    const mod = await import("gpt-tokenizer");
+    _encode = mod.encode;
+  }
+  return _encode;
+}
+
+/** Cheap token estimate (~4 chars per token) - good for early bailout checks */
+export const CHARS_PER_TOKEN_ESTIMATE = 4;
+
+/**
+ * Quick token estimate using char/4 heuristic
+ * Use this for cheap early bailout checks before expensive tokenization
+ */
+export function estimateTokens(text: string): number {
+  if (!text) return 0;
+  return Math.ceil(text.length / CHARS_PER_TOKEN_ESTIMATE);
+}
 
 /**
  * Default context window limits by model
@@ -50,7 +74,7 @@ export const MODEL_CONTEXT_LIMITS: Record<string, number> = {
 };
 
 /**
- * Count the number of tokens in a text string
+ * Count the number of tokens in a text string (async, lazy-loads tokenizer)
  *
  * Uses gpt-tokenizer which provides accurate token counts.
  * While optimized for GPT models, it provides a good approximation
@@ -59,9 +83,27 @@ export const MODEL_CONTEXT_LIMITS: Record<string, number> = {
  * @param text - The text to count tokens for
  * @returns The number of tokens
  */
+export async function countTokensAsync(text: string): Promise<number> {
+  if (!text) return 0;
+  const encode = await getEncoder();
+  return encode(text).length;
+}
+
+/**
+ * Synchronous token counting (loads tokenizer eagerly on first call)
+ * Prefer countTokensAsync for cold-start-sensitive paths
+ *
+ * @param text - The text to count tokens for
+ * @returns The number of tokens
+ */
 export function countTokens(text: string): number {
   if (!text) return 0;
-  return encode(text).length;
+  // Fallback to estimate if tokenizer not loaded yet
+  // This maintains backward compatibility while being cold-start friendly
+  if (!_encode) {
+    return estimateTokens(text);
+  }
+  return _encode(text).length;
 }
 
 /**
@@ -112,7 +154,36 @@ export function getContextLimit(
 }
 
 /**
- * Check if text exceeds the token limit for a model
+ * Check if text exceeds the token limit for a model (async, lazy-loads tokenizer)
+ *
+ * @param text - The text to check
+ * @param model - The model name
+ * @param configOverride - Optional context_window from config
+ * @returns true if the text exceeds the limit
+ */
+export async function exceedsTokenLimitAsync(
+  text: string,
+  model?: string,
+  configOverride?: number
+): Promise<boolean> {
+  const limit = getContextLimit(model, configOverride);
+  // Fast path: use cheap estimate first
+  const estimate = estimateTokens(text);
+  // If estimate is well under limit (80%), skip expensive tokenization
+  if (estimate < limit * 0.8) {
+    return false;
+  }
+  // If estimate is way over limit (120%), skip expensive tokenization
+  if (estimate > limit * 1.2) {
+    return true;
+  }
+  // Near the limit - do accurate count
+  const tokenCount = await countTokensAsync(text);
+  return tokenCount > limit;
+}
+
+/**
+ * Check if text exceeds the token limit for a model (sync, uses estimate if tokenizer not loaded)
  *
  * @param text - The text to check
  * @param model - The model name
@@ -130,7 +201,32 @@ export function exceedsTokenLimit(
 }
 
 /**
- * Get token usage information for text
+ * Get token usage information for text (async, lazy-loads tokenizer)
+ *
+ * @param text - The text to analyze
+ * @param model - The model name
+ * @param configOverride - Optional context_window from config
+ * @returns Object with token count, limit, and usage percentage
+ */
+export async function getTokenUsageAsync(
+  text: string,
+  model?: string,
+  configOverride?: number
+): Promise<{ tokens: number; limit: number; percentage: number; exceeds: boolean }> {
+  const tokens = await countTokensAsync(text);
+  const limit = getContextLimit(model, configOverride);
+  const percentage = (tokens / limit) * 100;
+
+  return {
+    tokens,
+    limit,
+    percentage: Math.round(percentage * 100) / 100,
+    exceeds: tokens > limit,
+  };
+}
+
+/**
+ * Get token usage information for text (sync, uses estimate if tokenizer not loaded)
  *
  * @param text - The text to analyze
  * @param model - The model name

@@ -31,15 +31,34 @@ import {
 import { isDomainTrusted, promptForTrust, addTrustedDomain, extractDomain } from "./trust";
 import { dirname, resolve, join, delimiter, sep } from "path";
 import { homedir } from "os";
-import { input } from "@inquirer/prompts";
+// Lazy-load heavy dependencies for cold start optimization
 import { exceedsLimit, StdinSizeLimitError } from "./limits";
-import { countTokens } from "./tokenizer";
+import { countTokensAsync, estimateTokens } from "./tokenizer";
 import {
   MarkdownAgentError, EarlyExitRequest, UserCancelledError, FileNotFoundError,
   NetworkError, SecurityError, ConfigurationError, TemplateError, ImportError,
 } from "./errors";
 import type { SystemEnvironment } from "./system-environment";
-import { recordUsage } from "./history";
+
+// Lazy-load @inquirer/prompts input function
+let _input: typeof import("@inquirer/prompts").input | null = null;
+async function getInputPrompt() {
+  if (!_input) {
+    const mod = await import("@inquirer/prompts");
+    _input = mod.input;
+  }
+  return _input;
+}
+
+// Lazy-load history module (only needed for frecency tracking)
+let _recordUsage: typeof import("./history").recordUsage | null = null;
+async function getRecordUsage() {
+  if (!_recordUsage) {
+    const mod = await import("./history");
+    _recordUsage = mod.recordUsage;
+  }
+  return _recordUsage;
+}
 
 /** Result from CliRunner.run() */
 export interface CliRunResult {
@@ -73,7 +92,11 @@ export class CliRunner {
     this.cwd = options.cwd ?? process.cwd();
     this.isStdinTTY = options.isStdinTTY ?? Boolean(process.stdin.isTTY);
     this.stdinContent = options.stdinContent;
-    this.promptInput = options.promptInput ?? ((msg) => input({ message: msg }));
+    // Lazy-load input prompt only when actually needed
+    this.promptInput = options.promptInput ?? (async (msg) => {
+      const inputFn = await getInputPrompt();
+      return inputFn({ message: msg });
+    });
   }
 
   private async readStdin(): Promise<string> {
@@ -300,9 +323,9 @@ export class CliRunner {
 
     getCommandLogger().info({ exitCode: runResult.exitCode }, "Command completed");
 
-    // Record usage for frecency tracking (skip for failed runs)
+    // Record usage for frecency tracking (skip for failed runs, lazy-load history)
     if (runResult.exitCode === 0) {
-      recordUsage(localFilePath).catch(() => {}); // Fire and forget
+      getRecordUsage().then(recordUsage => recordUsage(localFilePath)).catch(() => {}); // Fire and forget
     }
 
     if (isRemote) await cleanupRemote(localFilePath);
@@ -562,7 +585,9 @@ export class CliRunner {
     this.writeStdout("───────────────────────────────────────────────────────────");
     this.writeStdout(positionals[0] ?? "");
     this.writeStdout("───────────────────────────────────────────────────────────\n");
-    this.writeStdout(`Estimated tokens: ~${countTokens(positionals[0] ?? "").toLocaleString()}`);
+    // Use async token counting to avoid loading tokenizer eagerly
+    const tokenCount = await countTokensAsync(positionals[0] ?? "");
+    this.writeStdout(`Estimated tokens: ~${tokenCount.toLocaleString()}`);
 
     if (isRemote) await cleanupRemote(localFilePath);
     logger.info({ dryRun: true }, "Dry run completed");

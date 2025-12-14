@@ -3,9 +3,39 @@ import { basename, join, delimiter } from "path";
 import { realpathSync } from "fs";
 import { homedir } from "os";
 import { EarlyExitRequest, UserCancelledError } from "./errors";
-import { showFileSelectorWithPreview, type FileSelectorSelection } from "./file-selector";
-import { startSpinner } from "./spinner";
-import { loadHistory, getFrecencyScore } from "./history";
+// Lazy-load heavy UI dependencies only when interactive picker is needed
+import type { FileSelectorSelection } from "./file-selector";
+
+// Deferred imports for cold start optimization
+let _showFileSelectorWithPreview: typeof import("./file-selector").showFileSelectorWithPreview | null = null;
+let _startSpinner: typeof import("./spinner").startSpinner | null = null;
+let _loadHistory: typeof import("./history").loadHistory | null = null;
+let _getFrecencyScore: typeof import("./history").getFrecencyScore | null = null;
+
+async function getFileSelector() {
+  if (!_showFileSelectorWithPreview) {
+    const mod = await import("./file-selector");
+    _showFileSelectorWithPreview = mod.showFileSelectorWithPreview;
+  }
+  return _showFileSelectorWithPreview;
+}
+
+async function getSpinner() {
+  if (!_startSpinner) {
+    const mod = await import("./spinner");
+    _startSpinner = mod.startSpinner;
+  }
+  return _startSpinner;
+}
+
+async function getHistory() {
+  if (!_loadHistory || !_getFrecencyScore) {
+    const mod = await import("./history");
+    _loadHistory = mod.loadHistory;
+    _getFrecencyScore = mod.getFrecencyScore;
+  }
+  return { loadHistory: _loadHistory, getFrecencyScore: _getFrecencyScore };
+}
 
 export interface CliArgs {
   filePath: string;
@@ -166,7 +196,8 @@ export async function findAgentFiles(): Promise<AgentFile[]> {
 
   const glob = new Glob("*.md");
 
-  // Load history for frecency scoring
+  // Lazy-load history for frecency scoring
+  const { loadHistory, getFrecencyScore } = await getHistory();
   await loadHistory();
 
   // 1. Current directory
@@ -273,8 +304,10 @@ export function getUserAgentsDir(): string {
 
 /**
  * Show interactive file picker with preview and return selection (path + dryRun flag)
+ * Lazy-loads the file-selector module only when actually needed
  */
 export async function showInteractiveSelector(files: AgentFile[]): Promise<FileSelectorSelection | undefined> {
+  const showFileSelectorWithPreview = await getFileSelector();
   return showFileSelectorWithPreview(files);
 }
 
@@ -295,7 +328,8 @@ export async function handleMaCommands(args: CliArgs): Promise<HandleMaCommandsR
       if (mdFiles.length > 0) {
         const selection = await showInteractiveSelector(mdFiles);
         if (selection) {
-          // Start spinner to show activity while preparing the agent
+          // Start spinner to show activity while preparing the agent (lazy-loaded)
+          const startSpinner = await getSpinner();
           startSpinner(`Starting ${basename(selection.path)}...`);
           return { handled: true, selectedFile: selection.path, dryRun: selection.dryRun };
         }

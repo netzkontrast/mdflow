@@ -6,9 +6,24 @@
  * 1. Testing without hanging on interactive prompts
  * 2. Different UI implementations (CLI, GUI, automated testing)
  * 3. Consistent error/warning/log handling
+ *
+ * Cold start optimization: Lazy-loads @inquirer/prompts only when needed
  */
 
-import { confirm, select, input } from "@inquirer/prompts";
+// Lazy-load inquirer prompts to avoid cold start penalty
+let _confirm: typeof import("@inquirer/prompts").confirm | null = null;
+let _select: typeof import("@inquirer/prompts").select | null = null;
+let _input: typeof import("@inquirer/prompts").input | null = null;
+
+async function getInquirerPrompts() {
+  if (!_confirm || !_select || !_input) {
+    const mod = await import("@inquirer/prompts");
+    _confirm = mod.confirm;
+    _select = mod.select;
+    _input = mod.input;
+  }
+  return { confirm: _confirm, select: _select, input: _input };
+}
 
 /** Choice option for select prompts */
 export interface Choice<T> {
@@ -41,13 +56,16 @@ export interface UserInterface {
 /**
  * Console-based UI implementation using @inquirer/prompts
  * This is the real implementation for interactive CLI use
+ * Lazy-loads inquirer prompts on first use for cold start optimization
  */
 export class ConsoleUI implements UserInterface {
   async confirm(message: string, defaultValue: boolean = false): Promise<boolean> {
+    const { confirm } = await getInquirerPrompts();
     return confirm({ message, default: defaultValue });
   }
 
   async select<T>(message: string, choices: Choice<T>[], defaultValue?: T): Promise<T> {
+    const { select } = await getInquirerPrompts();
     return select({
       message,
       choices: choices.map(c => ({
@@ -60,6 +78,7 @@ export class ConsoleUI implements UserInterface {
   }
 
   async input(message: string, defaultValue?: string): Promise<string> {
+    const { input } = await getInquirerPrompts();
     return input({ message, default: defaultValue });
   }
 
