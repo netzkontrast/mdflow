@@ -1,3 +1,10 @@
+# [2.35.0](https://github.com/johnlindquist/mdflow/compare/v2.34.0...v2.35.0) (2025-12-16)
+
+
+### Features
+
+* support piping between agents (foo.md | bar.md) ([a5466cf](https://github.com/johnlindquist/mdflow/commit/a5466cf700930f11c84f69de4d19f6b2a17088bc))
+
 # [2.34.0](https://github.com/johnlindquist/mdflow/compare/v2.33.0...v2.34.0) (2025-12-16)
 
 
