@@ -156,6 +156,46 @@ task.opencode.md    # Print mode: opencode run "..."
 task.i.opencode.md  # Interactive: opencode "..."
 ```
 
+### Supported Models by CLI (December 2025)
+
+**IMPORTANT:** Use these exact model names. Do not guess or use deprecated model names.
+
+#### Claude Code (`claude`)
+| Type | Values |
+|------|--------|
+| **Aliases** | `sonnet`, `opus`, `haiku`, `opusplan` |
+| **Full names** | `claude-sonnet-4-5-20250929`, `claude-opus-4-5-20251101`, `claude-haiku-4-5-20251001`, `claude-opus-4-1-20250805` |
+
+Environment variables for alias control:
+- `ANTHROPIC_DEFAULT_SONNET_MODEL` - Override sonnet alias
+- `ANTHROPIC_DEFAULT_OPUS_MODEL` - Override opus alias
+- `ANTHROPIC_DEFAULT_HAIKU_MODEL` - Override haiku alias
+
+#### Codex CLI (`codex`)
+| Type | Values |
+|------|--------|
+| **Default** | `codex-mini-latest` (o4-mini optimized for CLI) |
+| **Reasoning models** | `o3`, `o4-mini` |
+| **GPT models** | `gpt-4.1` |
+
+Codex works with any OpenAI model. Example: `-m o3` or `-c model="o3"`
+
+#### Gemini CLI (`gemini`)
+| Type | Values |
+|------|--------|
+| **Default (free)** | `gemini-2.5-pro` |
+| **Preview** | `gemini-3-pro` (requires subscription or paid API key) |
+
+To enable Gemini 3 Pro: run `/settings`, toggle "Preview features" to true.
+
+#### Copilot CLI (`copilot`)
+Explicit `--model` choices (from `copilot --help`):
+| Category | Models |
+|----------|--------|
+| **Claude** | `claude-sonnet-4.5`, `claude-haiku-4.5`, `claude-opus-4.5`, `claude-sonnet-4` |
+| **GPT** | `gpt-5.1-codex-max`, `gpt-5.1-codex`, `gpt-5.2`, `gpt-5.1`, `gpt-5`, `gpt-5.1-codex-mini`, `gpt-5-mini`, `gpt-4.1` |
+| **Gemini** | `gemini-3-pro-preview` |
+
 ### Global Config (`~/.mdflow/config.yaml`)
 
 Set default frontmatter per command:
