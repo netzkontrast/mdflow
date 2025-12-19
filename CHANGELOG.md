@@ -1,3 +1,10 @@
+## [2.35.5](https://github.com/johnlindquist/mdflow/compare/v2.35.4...v2.35.5) (2025-12-19)
+
+
+### Bug Fixes
+
+* stop spinner before streaming output to prevent double-rendering ([48af0af](https://github.com/johnlindquist/mdflow/commit/48af0af6fdcb3b7d0d8206670678316fad8d7be0))
+
 ## [2.35.4](https://github.com/johnlindquist/mdflow/compare/v2.35.3...v2.35.4) (2025-12-19)
 
 
