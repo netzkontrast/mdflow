@@ -99,6 +99,22 @@ function isPositionalKey(key: string): boolean {
 }
 
 /**
+ * Variadic flags that consume all following positional arguments.
+ * These must use --flag=value syntax to avoid eating the prompt.
+ */
+const VARIADIC_FLAGS = new Set([
+  "allowed-tools",
+  "allowedTools",
+  "disallowed-tools",
+  "disallowedTools",
+  "tools",
+  "add-dir",
+  "betas",
+  "mcp-config",
+  "plugin-dir",
+]);
+
+/**
  * Extract command from filename
  * e.g., "commit.claude.md" → "claude"
  * e.g., "task.gemini.md" → "gemini"
@@ -187,13 +203,23 @@ export function buildArgs(
     // Array → repeat flag for each value
     if (Array.isArray(value)) {
       for (const v of value) {
-        args.push(toFlag(key), String(v));
+        // Variadic flags need --flag=value syntax to not eat following args
+        if (VARIADIC_FLAGS.has(key)) {
+          args.push(`${toFlag(key)}=${String(v)}`);
+        } else {
+          args.push(toFlag(key), String(v));
+        }
       }
       continue;
     }
 
     // String/number → flag with value
-    args.push(toFlag(key), String(value));
+    // Variadic flags need --flag=value syntax to not eat following args
+    if (VARIADIC_FLAGS.has(key)) {
+      args.push(`${toFlag(key)}=${String(value)}`);
+    } else {
+      args.push(toFlag(key), String(value));
+    }
   }
 
   return args;

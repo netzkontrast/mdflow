@@ -32,8 +32,10 @@ describe("integration: command building", () => {
     expect(args).toContain("--model");
     expect(args).toContain("opus");
     expect(args).toContain("--print");
-    expect(args).toContain("--add-dir");
-    expect(args.filter(a => a === "--add-dir")).toHaveLength(2);
+    // add-dir is a variadic flag, so it uses --flag=value format
+    expect(args).toContain("--add-dir=./src");
+    expect(args).toContain("--add-dir=./tests");
+    expect(args.filter(a => a.startsWith("--add-dir="))).toHaveLength(2);
   });
 
   it("excludes system keys from args", () => {

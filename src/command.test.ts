@@ -53,8 +53,34 @@ describe("buildArgs", () => {
   });
 
   test("handles arrays by repeating flags", () => {
+    // Non-variadic arrays use space-separated format
+    const result = buildArgs({ "include": ["./src", "./tests"] }, new Set());
+    expect(result).toEqual(["--include", "./src", "--include", "./tests"]);
+  });
+
+  test("variadic flags use = syntax to avoid eating positional args", () => {
+    // add-dir is a variadic flag, so it uses --flag=value format
     const result = buildArgs({ "add-dir": ["./src", "./tests"] }, new Set());
-    expect(result).toEqual(["--add-dir", "./src", "--add-dir", "./tests"]);
+    expect(result).toEqual(["--add-dir=./src", "--add-dir=./tests"]);
+  });
+
+  test("variadic allowed-tools string uses = syntax", () => {
+    const result = buildArgs({ "allowed-tools": "Bash(git status:*)" }, new Set());
+    expect(result).toEqual(["--allowed-tools=Bash(git status:*)"]);
+  });
+
+  test("variadic allowed-tools array produces multiple --flag= entries", () => {
+    const result = buildArgs({ "allowed-tools": ["Read", "Edit", "Bash(git:*)"] }, new Set());
+    expect(result).toEqual([
+      "--allowed-tools=Read",
+      "--allowed-tools=Edit",
+      "--allowed-tools=Bash(git:*)"
+    ]);
+  });
+
+  test("variadic allowed-tools comma-separated string works", () => {
+    const result = buildArgs({ "allowed-tools": "Read,Edit,Bash" }, new Set());
+    expect(result).toEqual(["--allowed-tools=Read,Edit,Bash"]);
   });
 
   test("skips system keys (_inputs)", () => {
