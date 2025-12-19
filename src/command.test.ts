@@ -78,9 +78,22 @@ describe("buildArgs", () => {
     ]);
   });
 
-  test("variadic allowed-tools comma-separated string works", () => {
+  test("variadic allowed-tools comma-separated string splits into multiple flags", () => {
     const result = buildArgs({ "allowed-tools": "Read,Edit,Bash" }, new Set());
-    expect(result).toEqual(["--allowed-tools=Read,Edit,Bash"]);
+    expect(result).toEqual([
+      "--allowed-tools=Read",
+      "--allowed-tools=Edit",
+      "--allowed-tools=Bash"
+    ]);
+  });
+
+  test("variadic allowed-tools comma-space-separated string splits correctly", () => {
+    // Handle tool patterns with spaces like Bash(git commit:*)
+    const result = buildArgs({ "allowed-tools": "Bash(git commit:*), Bash(git add:*)" }, new Set());
+    expect(result).toEqual([
+      "--allowed-tools=Bash(git commit:*)",
+      "--allowed-tools=Bash(git add:*)"
+    ]);
   });
 
   test("skips system keys (_inputs)", () => {

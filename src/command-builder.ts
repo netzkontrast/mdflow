@@ -152,7 +152,17 @@ export function buildArgsFromFrontmatter(
     // String/number -> flag with value
     // Variadic flags need --flag=value syntax to not eat following args
     if (VARIADIC_FLAGS.has(key)) {
-      args.push(`${toFlag(key)}=${String(value)}`);
+      const strValue = String(value);
+      // Split comma-separated values for variadic flags
+      // Handle both "Read,Edit" and "Bash(git commit:*), Bash(git add:*)"
+      const parts = strValue.includes(', ')
+        ? strValue.split(', ')  // Split on ", " (comma + space)
+        : strValue.includes(',')
+          ? strValue.split(',')  // Split on just ","
+          : [strValue];          // No commas, single value
+      for (const part of parts) {
+        args.push(`${toFlag(key)}=${part.trim()}`);
+      }
     } else {
       args.push(toFlag(key), String(value));
     }
