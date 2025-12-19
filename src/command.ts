@@ -408,6 +408,9 @@ export async function runCommand(ctx: RunContext): Promise<RunResult> {
 
   // Handle output based on mode
   if (mode === "tee") {
+    // Stop spinner before streaming output starts
+    stopSpinner();
+
     // Tee mode: stream to console while capturing (with markdown rendering)
     const promises: Promise<void>[] = [];
 
@@ -429,6 +432,9 @@ export async function runCommand(ctx: RunContext): Promise<RunResult> {
 
     await Promise.all(promises);
   } else if (mode === "capture") {
+    // Stop spinner before reading output
+    stopSpinner();
+
     // Capture mode: buffer then print (with markdown rendering)
     if (proc.stdout) {
       stdout = await new Response(proc.stdout).text();
