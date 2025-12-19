@@ -1,3 +1,10 @@
+## [2.35.3](https://github.com/johnlindquist/mdflow/compare/v2.35.2...v2.35.3) (2025-12-19)
+
+
+### Bug Fixes
+
+* use --flag=value syntax for variadic CLI flags ([12422cd](https://github.com/johnlindquist/mdflow/commit/12422cd58b40fd8292dad7e4866e69a93bb260bf))
+
 ## [2.35.2](https://github.com/johnlindquist/mdflow/compare/v2.35.1...v2.35.2) (2025-12-16)
 
 
