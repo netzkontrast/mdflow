@@ -9,7 +9,7 @@
 import { mkdtemp, rm } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
-import { resilientFetch } from "./fetch";
+import { resilientFetch } from "../utils/fetch";
 import {
   getCachedContent,
   setCachedContent,

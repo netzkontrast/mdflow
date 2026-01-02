@@ -11,9 +11,9 @@
  * All orchestration logic is in CliRunner for testability.
  */
 
-import { CliRunner } from "./cli-runner";
-import { BunSystemEnvironment } from "./system-environment";
-import { getProcessManager } from "./process-manager";
+import { CliRunner } from "./cli/runner";
+import { BunSystemEnvironment } from "./core/system-environment";
+import { getProcessManager } from "./core/execution/process-manager";
 
 async function main() {
   // Initialize ProcessManager early for centralized signal handling

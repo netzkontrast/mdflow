@@ -6,54 +6,54 @@
  * without spawning actual subprocesses or touching the real filesystem.
  */
 
-import { parseFrontmatter } from "./parse";
+import { parseFrontmatter } from "../core/agent/parse";
 import { parseCliArgs, handleMaCommands } from "./cli";
-import type { AgentFrontmatter, FormInputs } from "./types";
-import { detectAdhocCommand, createVirtualAgentContent, createVirtualFilename } from "./adhoc-command";
+import type { AgentFrontmatter, FormInputs } from "../core/types";
+import { detectAdhocCommand, createVirtualAgentContent, createVirtualFilename } from "../features/adhoc";
 import {
   isFormInputs,
   isLegacyInputs,
   collectFormInputs,
   getFormInputDefaults,
   getMissingRequiredInputs,
-} from "./form-inputs";
-import { substituteTemplateVars, extractTemplateVars } from "./template";
-import { isRemoteUrl, fetchRemote, cleanupRemote } from "./remote";
+} from "../features/forms";
+import { substituteTemplateVars, extractTemplateVars } from "../core/agent/template";
+import { isRemoteUrl, fetchRemote, cleanupRemote } from "../features/remote";
 import {
   resolveCommand, buildArgs, runCommand, extractPositionalMappings,
   extractEnvVars, killCurrentChildProcess, hasInteractiveMarker,
-} from "./command";
-import { startSpinner } from "./spinner";
-import { getProcessManager } from "./process-manager";
+} from "../core/execution/command";
+import { startSpinner } from "./ui/spinner";
+import { getProcessManager } from "../core/execution/process-manager";
 import {
   expandImports, hasImports,
   expandContentImports, expandCommandImports,
   hasContentImports, hasCommandImports
-} from "./imports";
+} from "../features/imports/index";
 import {
   analyzeContext, printDashboard, shouldShowDashboard
-} from "./context-dashboard";
-import { loadEnvFiles } from "./env";
+} from "../features/dashboard";
+import { loadEnvFiles } from "../features/env";
 import {
   loadGlobalConfig, getCommandDefaults, applyDefaults, applyInteractiveMode,
-} from "./config";
+} from "../features/config";
 import {
   initLogger, getParseLogger, getTemplateLogger, getCommandLogger,
   getImportLogger, getCurrentLogPath,
-} from "./logger";
-import { isDomainTrusted, promptForTrust, addTrustedDomain, extractDomain } from "./trust";
+} from "../features/logger";
+import { isDomainTrusted, promptForTrust, addTrustedDomain, extractDomain } from "../features/trust";
 import { dirname, resolve, join, delimiter, sep } from "path";
 import { homedir } from "os";
 // Lazy-load heavy dependencies for cold start optimization
-import { exceedsLimit, StdinSizeLimitError } from "./limits";
-import { countTokensAsync, estimateTokens } from "./tokenizer";
+import { exceedsLimit, StdinSizeLimitError } from "../core/agent/limits";
+import { countTokensAsync, estimateTokens } from "../core/agent/tokenizer";
 import {
   MarkdownAgentError, EarlyExitRequest, UserCancelledError, FileNotFoundError,
   NetworkError, SecurityError, ConfigurationError, TemplateError, ImportError,
-} from "./errors";
-import type { SystemEnvironment } from "./system-environment";
+} from "../core/errors";
+import type { SystemEnvironment } from "../core/system-environment";
 import { editPrompt } from "./edit-prompt";
-import { maskArgsArray } from "./secrets";
+import { maskArgsArray } from "../features/secrets";
 
 // Lazy-load @inquirer/prompts input function
 let _input: typeof import("@inquirer/prompts").input | null = null;
@@ -66,13 +66,13 @@ async function getInputPrompt() {
 }
 
 // Lazy-load history module (only needed for frecency tracking and variable persistence)
-let _recordUsage: typeof import("./history").recordUsage | null = null;
-let _getVariableHistory: typeof import("./history").getVariableHistory | null = null;
-let _saveVariableValues: typeof import("./history").saveVariableValues | null = null;
+let _recordUsage: typeof import("../features/history").recordUsage | null = null;
+let _getVariableHistory: typeof import("../features/history").getVariableHistory | null = null;
+let _saveVariableValues: typeof import("../features/history").saveVariableValues | null = null;
 
 async function getRecordUsage() {
   if (!_recordUsage) {
-    const mod = await import("./history");
+    const mod = await import("../features/history");
     _recordUsage = mod.recordUsage;
   }
   return _recordUsage;
@@ -80,7 +80,7 @@ async function getRecordUsage() {
 
 async function getVariableHistoryFn() {
   if (!_getVariableHistory) {
-    const mod = await import("./history");
+    const mod = await import("../features/history");
     _getVariableHistory = mod.getVariableHistory;
   }
   return _getVariableHistory;
@@ -88,7 +88,7 @@ async function getVariableHistoryFn() {
 
 async function getSaveVariableValuesFn() {
   if (!_saveVariableValues) {
-    const mod = await import("./history");
+    const mod = await import("../features/history");
     _saveVariableValues = mod.saveVariableValues;
   }
   return _saveVariableValues;
@@ -256,7 +256,7 @@ export class CliRunner {
       return { exitCode: 0 };
     }
     if (subcommand === "logs") {
-      const { getLogDir, listLogDirs } = await import("./logger");
+      const { getLogDir, listLogDirs } = await import("../features/logger");
       this.writeStdout(`Log directory: ${getLogDir()}\n`);
       const dirs = listLogDirs();
       if (dirs.length === 0) {

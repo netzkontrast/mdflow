@@ -10,9 +10,9 @@
 
 import { dirname, resolve, basename, relative } from "path";
 import { Glob } from "bun";
-import { parseImports } from "./imports-parser";
-import type { ImportAction } from "./imports-types";
-import { estimateTokens } from "./tokenizer";
+import { parseImports } from "./imports/parser";
+import type { ImportAction } from "./imports/types";
+import { estimateTokens } from "../core/agent/tokenizer";
 
 /** Size thresholds for color coding (in bytes) */
 const SIZE_THRESHOLD_SMALL = 5 * 1024;    // 5KB - green

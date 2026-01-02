@@ -12,7 +12,7 @@
 
 import { existsSync } from "fs";
 import { join, dirname, resolve } from "path";
-import { parseFrontmatter } from "./parse";
+import { parseFrontmatter } from "../core/agent/parse";
 import {
   resolveCommand, buildArgs, extractPositionalMappings,
   extractEnvVars, hasInteractiveMarker,
@@ -21,12 +21,12 @@ import {
   loadGlobalConfig, loadProjectConfig, loadFullConfig,
   applyDefaults, applyInteractiveMode, BUILTIN_DEFAULTS, getConfigFile,
 } from "./config";
-import { expandContentImports, hasContentImports } from "./imports";
-import { substituteTemplateVars, extractTemplateVars } from "./template";
-import { isDomainTrusted, extractDomain, getKnownHostsPath } from "./trust";
-import { isRemoteUrl, fetchRemote, cleanupRemote } from "./remote";
-import { getTokenUsage } from "./tokenizer";
-import type { AgentFrontmatter, CommandDefaults } from "./types";
+import { expandContentImports, hasContentImports } from "../features/imports/index";
+import { substituteTemplateVars, extractTemplateVars } from "../core/agent/template";
+import { isDomainTrusted, extractDomain, getKnownHostsPath } from "../features/trust";
+import { isRemoteUrl, fetchRemote, cleanupRemote } from "../features/remote";
+import { getTokenUsage } from "../core/agent/tokenizer";
+import type { AgentFrontmatter, CommandDefaults } from "../core/types";
 
 const PROMPT_PREVIEW_LENGTH = 1000;
 

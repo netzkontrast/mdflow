@@ -5,7 +5,7 @@
  * in the _inputs frontmatter field.
  */
 
-import type { InputDefinition, FormInputs } from "./types";
+import type { InputDefinition, FormInputs } from "../core/types";
 
 // Lazy-load @inquirer/prompts to avoid cold start penalty
 let _input: typeof import("@inquirer/prompts").input | null = null;

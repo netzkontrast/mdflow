@@ -17,9 +17,9 @@ import {
 import { readFileSync, existsSync } from "node:fs";
 import { homedir } from "os";
 import { spawnSync } from "node:child_process";
-import type { AgentFile } from "./cli";
-import { LRUCache } from "./cache";
-import { recordTouch, getFrecencyScore } from "./history";
+import type { AgentFile } from "../cli";
+import { LRUCache } from "../../features/cache";
+import { recordTouch, getFrecencyScore } from "../../features/history";
 
 /** Result from file selector - either a path to run, edit, or dry-run */
 export interface FileSelectorResult {

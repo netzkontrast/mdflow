@@ -4,13 +4,13 @@ import { chmod, unlink } from "fs/promises";
 import { homedir, platform, tmpdir } from "os";
 import { Glob } from "bun";
 // Lazy-load heavy dependencies for cold start optimization
-import { resilientFetch } from "./fetch";
-import { MAX_INPUT_SIZE, FileSizeLimitError, exceedsLimit } from "./limits";
-import { estimateTokens, getContextLimit, countTokensAsync } from "./tokenizer";
-import { Semaphore, DEFAULT_CONCURRENCY_LIMIT } from "./concurrency";
-import { substituteTemplateVars } from "./template";
-import { parseImports as parseImportsSafe, hasImportsInContent } from "./imports-parser";
-import type { ImportAction, ExecutableCodeFenceAction } from "./imports-types";
+import { resilientFetch } from "../../utils/fetch";
+import { MAX_INPUT_SIZE, FileSizeLimitError, exceedsLimit } from "../../core/agent/limits";
+import { estimateTokens, getContextLimit, countTokensAsync } from "../../core/agent/tokenizer";
+import { Semaphore, DEFAULT_CONCURRENCY_LIMIT } from "../../core/execution/concurrency";
+import { substituteTemplateVars } from "../../core/agent/template";
+import { parseImports as parseImportsSafe, hasImportsInContent } from "./parser";
+import type { ImportAction, ExecutableCodeFenceAction } from "../../core/types";
 
 // Lazy-load ignore package (only needed for glob imports)
 type IgnoreFactory = typeof import("ignore");
@@ -101,10 +101,10 @@ class ParallelDashboard {
 }
 
 // Re-export pipeline components for direct access
-export { parseImports, hasImportsInContent, isGlobPattern, parseLineRange, parseSymbolExtraction } from "./imports-parser";
-export { injectImports, createResolvedImport } from "./imports-injector";
-export type { ImportAction, ResolvedImport, SystemEnvironment } from "./imports-types";
-export { Semaphore, DEFAULT_CONCURRENCY_LIMIT } from "./concurrency";
+export { parseImports, hasImportsInContent, isGlobPattern, parseLineRange, parseSymbolExtraction } from "./parser";
+export { injectImports, createResolvedImport } from "./injector";
+export type { ImportAction, ResolvedImport, SystemEnvironment } from "../../core/types";
+export { Semaphore, DEFAULT_CONCURRENCY_LIMIT } from "../../core/execution/concurrency";
 
 /**
  * Expand markdown imports, URL imports, and command inlines
@@ -262,7 +262,7 @@ export const WARN_TOKENS = 50_000;
 export const CHARS_PER_TOKEN = 4;
 const MAX_CHARS = MAX_TOKENS * CHARS_PER_TOKEN;
 
-import { getProcessManager } from "./process-manager";
+import { getProcessManager } from "../../core/execution/process-manager";
 
 /** Default command execution timeout in milliseconds (30 seconds) */
 const DEFAULT_COMMAND_TIMEOUT_MS = 30_000;

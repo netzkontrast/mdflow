@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { CliRunner, createCliRunner } from "./cli-runner";
-import { createTestEnvironment, InMemorySystemEnvironment } from "./system-environment";
-import { clearConfigCache } from "./config";
+import { CliRunner, createCliRunner } from "./runner";
+import { createTestEnvironment, InMemorySystemEnvironment } from "../core/system-environment";
+import { clearConfigCache } from "../features/config";
 
 /**
  * CliRunner Tests
