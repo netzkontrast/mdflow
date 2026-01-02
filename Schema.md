@@ -33,6 +33,18 @@ _inputs:
     default: "Default value"
 ```
 
+### Standard Template Variables
+
+These variables should be used consistently across agents to ensure interoperability in workflows (e.g., SDD pipelines).
+
+| Variable | Description | Used In |
+| :--- | :--- | :--- |
+| `_task` | A JSON object or string describing a specific work item. | SDD Implementer, Reviewer |
+| `_context` | Additional context (file paths, error logs) passed to the agent. | Debugging, Planning |
+| `_goal` | The high-level objective for a brainstorming or planning session. | Brainstorming |
+| `_design` | The content of a Design Document (often piped via stdin). | Planning |
+| `_pr` | Pull Request details or git diff content. | Code Review |
+
 ### Superpowers Extensions
 
 | Field | Type | Description |

@@ -35,6 +35,73 @@ Instead of monolithic "Agent Platforms", we believe in:
 - `agents/`: Executable agent definitions.
 - `ontology.md` & `Schema.md`: System definition.
 
+## Cookbook: Superpowers Workflows
+
+These examples demonstrate how to implement the "Superpowers" methodology using `mdflow`.
+
+### 1. Brainstorming (Interactive)
+Turn a vague idea into a structured Design Document.
+
+```bash
+# Start an interactive brainstorming session
+mdflow agents/brainstorm.claude.md --_goal "Build a CLI for fractal generation"
+```
+*   **Input:** User goal.
+*   **Interaction:** The agent asks clarifying questions (Socratic method).
+*   **Output:** A `DESIGN.md` file (saved via agent action or copy-paste).
+
+### 2. Planning (Piping Context)
+Convert a Design Document into a bite-sized Implementation Plan.
+
+```bash
+# Pipe the design into the planner
+cat DESIGN.md | mdflow agents/plan.claude.md > PLAN.md
+```
+*   **Input:** `DESIGN.md` content (via `{{ _stdin }}`).
+*   **Process:** The agent applies the `writing-plans` skill (DRY, YAGNI, TDD).
+*   **Output:** A structured `PLAN.md` with numbered tasks.
+
+### 3. Subagent Driven Development (The "Fan-Out")
+Execute the plan by dispatching parallel workers. This is the "Superpower" of infinite scaling.
+
+**Step A: Extract Tasks**
+First, convert the Markdown plan into a JSON array of task objects.
+```bash
+# Assumes plan.md has a structure parsable to JSON (or use an agent to do it)
+mdflow agents/extract-tasks.md --_file PLAN.md > tasks.json
+```
+
+**Step B: Dispatch Workers (Parallel Execution)**
+Use standard CLI tools (`jq` and `parallel`) to spawn an `mdflow` instance for each task.
+
+```bash
+cat tasks.json | jq -c '.[]' | \
+  parallel --jobs 4 \
+  "mdflow agents/implement.claude.md --_task {} >> logs/task_{#}.log"
+```
+*   **`jq -c '.[]'`**: Emits each task object on a new line.
+*   **`parallel`**: Runs 4 agents simultaneously.
+*   **`--_task {}`**: Passes the task JSON to the agent.
+*   **Result:** 4 coding agents working in parallel on different files.
+
+### 4. Systematic Debugging
+Fix a specific error using the 4-phase debugging process.
+
+```bash
+# Pipe the error log and the relevant file to the debugger
+cat error.log | mdflow agents/debug.claude.md --_context src/broken_file.ts
+```
+*   **Skill:** Enforces "Root Cause Analysis" before fixing.
+
+### 5. Code Review
+Review a pull request or git diff against the original plan.
+
+```bash
+# Review staged changes
+git diff --cached | mdflow agents/review.claude.md --_pr "Feature: Auth"
+```
+*   **Skill:** Checks for "Spec Compliance" and "Code Quality".
+
 ---
 
 ## What Is This?
