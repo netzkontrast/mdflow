@@ -1,45 +1,92 @@
-# mdflow Knowledge Base
+# mdflow Knowledge Base & Agent Specifications
 
-## Overview
-`mdflow` is a CLI tool that treats Markdown files as executable AI agents. It follows the Unix philosophy of "everything is a file" and pipeable streams. The core idea is that a Markdown file with frontmatter configuration and a prompt body *is* the command.
+## 1. Overview: The "Superpowers" Architecture
+This repository implements the "Superpowers" methodology using `mdflow`. The core philosophy is to decompose complex software engineering tasks into discrete, composable **Agents** that share a common library of **Skills**.
 
-## Core Concepts
-- **Executable Markdown**: Files named `task.model.md` are commands.
-- **Frontmatter Configuration**: YAML frontmatter (`---`) maps to CLI flags.
-- **Pipeline Architecture**:
-  1. **Parse**: Scan for imports (`@file`, `!cmd`) and template vars.
-  2. **Resolve**: Fetch content (files, URLs) and execute commands.
-  3. **Inject**: Stitch content back into the prompt.
-  4. **Execute**: Send the final prompt to the LLM (via adapters).
-- **Template System**: LiquidJS is used for variables (`{{ _var }}`) and logic (`{% if %}`).
-- **Adapters**: Pluggable interfaces for different LLM providers (Claude, OpenAI, etc.).
+Instead of a monolithic "AI coding tool," we treat the development process as a pipeline of specialized roles (Agents) collaborating through standard interfaces (Markdown files).
 
-## Repository Structure
-- `src/`: Source code (TypeScript).
-  - `index.ts`: Library entry point.
-  - `cli.ts`: CLI entry point (`bin/md`).
-  - `imports.ts` / `imports-parser.ts`: Core logic for parsing and resolving imports.
-  - `template.ts`: LiquidJS integration.
-  - `adapters/`: LLM provider implementations.
-  - `commands/`: Subcommands (like `create`, `explain`).
-- `test/`: Tests (using `bun test`).
-- `examples/`: Example agents.
+## 2. Core Concepts
 
-## Development Patterns
-- **Testing**: We use `bun test`. Run `bun test` to execute all tests.
-- **Imports**: All IO operations (file reading, fetching) happen in the resolution phase (`src/imports.ts`). The parser (`src/imports-parser.ts`) is pure.
-- **Security**:
-  - We use a "Safe Parser" that ignores imports inside code blocks to prevent accidental execution of example code.
-  - Binary files are detected and skipped/blocked.
-  - Command execution has timeouts and output limits.
+### 2.1 Agents (`agents/*.md`)
+An Agent is an **Executable Markdown File**. It defines a specific "Persona" and a "Task".
+- **Location**: `agents/` (or `examples/superpowers/agents/`)
+- **Structure**:
+  - **Frontmatter**: Configuration (`model`, `temperature`, `_inputs`).
+  - **Imports**: Loads necessary **Skills**.
+  - **Prompt**: The instruction set.
 
-## Key Files for Navigation
-- `src/imports-parser.ts`: Start here to understand how imports are detected.
-- `src/imports.ts`: Start here to understand how imports are *processed* (IO).
-- `src/template.ts`: Variable substitution logic.
-- `src/adapters/`: How to add new AI models.
+**Example:**
+```markdown
+# brainstorm.claude.md
+---
+model: claude-3-5-sonnet
+_interactive: true
+---
+You are a Software Architect.
+@../skills/brainstorming.md
+```
 
-## Integration Goals (Superpowers)
-We are currently integrating "Superpowers" (a set of skills and agents from `netzkontrast/superpowers`).
-- **Skills**: Reusable instructions (e.g., TDD, Debugging) to be injected into prompts.
-- **Agents**: Specialized workflows (e.g., Code Reviewer) to be executed by `mdflow`.
+### 2.2 Skills (`skills/*.md`)
+A Skill is a **Reusable Instruction Module**. It contains best practices, formatting guides, or specific methodologies (e.g., TDD, Threat Modeling).
+- **Location**: `skills/` (or `examples/superpowers/skills/`)
+- **Structure**: Pure Markdown (headers, lists, examples). No frontmatter required.
+
+**Example:**
+```markdown
+# Skill: Systematic Debugging
+1. Isolate the reproduction case.
+2. Formulate a hypothesis.
+3. ...
+```
+
+### 2.3 The Workflow (The Loop)
+The "Superpowers" loop consists of four phases:
+1. **Brainstorm** (`agents/brainstorm.md`): Clarify requirements, output `DESIGN.md`.
+2. **Plan** (`agents/plan.md`): Break design into tasks, output `PLAN.md` (JSON/List).
+3. **Implement** (`agents/implement.md`): Execute tasks (often in parallel/fan-out).
+4. **Review** (`agents/review.md`): Critique changes against `DESIGN.md`.
+
+## 3. Core Agent Specifications
+
+### 3.1 The Architect (`agents/architect.claude.md`)
+- **Role**: High-level system design and requirement gathering.
+- **Input**: User goal (interactive).
+- **Output**: `DESIGN.md` (System Architecture, Tech Stack).
+- **Required Skills**: `brainstorming.md`, `system-design.md`.
+
+### 3.2 The Planner (`agents/planner.claude.md`)
+- **Role**: Project Management. Converts design into executable steps.
+- **Input**: `DESIGN.md`.
+- **Output**: `PLAN.md` (Task list, often minified JSON for automation).
+- **Required Skills**: `writing-plans.md`, `json-schema.md`.
+
+### 3.3 The Engineer (`agents/engineer.claude.md`)
+- **Role**: Implementation. Writes code, tests, and config.
+- **Input**: A single Task from `PLAN.md`.
+- **Output**: File changes.
+- **Required Skills**: `tdd.md`, `clean-code.md`, `language-specific/*.md`.
+- **Note**: This agent is often run in "Fan-Out" mode (multiple instances in parallel).
+
+### 3.4 The Reviewer (`agents/reviewer.claude.md`)
+- **Role**: QA and Security.
+- **Input**: `git diff` or specific files.
+- **Output**: Critique or "LGTM".
+- **Required Skills**: `security-audit.md`, `code-style.md`.
+
+## 4. Development Guidelines
+
+### 4.1 Writing Skills
+- **Keep it Atomic**: A skill should do one thing well (e.g., "Write Python Docstrings").
+- **Use Examples**: LLMs learn best from "Few-Shot" examples (Good vs. Bad).
+- **Version Control**: Skills are code. Commit them.
+
+### 4.2 Writing Agents
+- **Inherit Config**: Use `mdflow` defaults where possible.
+- **Use Inputs**: Use `_inputs` frontmatter for interactive agents.
+- **State via Files**: Agents are stateless. Read from files (`@PLAN.md`), write to files.
+
+### 4.3 Testing Agents (The Shim Strategy)
+To verify agent behavior without non-deterministic LLM calls:
+1. Run with `--_dry-run`.
+2. Capture the **Final Prompt**.
+3. Diff against a "Golden Prompt" to ensure skills are imported correctly.
