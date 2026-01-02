@@ -1,7 +1,52 @@
-# mdflow Knowledge Base
+# mdflow Knowledge Base & Skills Library
 
 ## Overview
-`mdflow` is a CLI tool that treats Markdown files as executable AI agents. It follows the Unix philosophy of "everything is a file" and pipeable streams. The core idea is that a Markdown file with frontmatter configuration and a prompt body *is* the command.
+`mdflow` is a CLI tool that treats Markdown files as executable AI agents. It follows the Unix philosophy of "everything is a file" and pipeable streams.
+
+For architectural details, see `ontology.md` and `Schema.md`.
+
+## Superpowers Skills Library
+The following skills are available for import. Use them via `@import skills/<category>/<skill-name>`.
+
+### Process & Workflow
+*   **`brainstorming`** (`skills/brainstorming/SKILL.md`)
+    *   *Trigger:* Use before creative work to explore requirements and design.
+    *   *Action:* Interactive Q&A to produce a Design Document (`DESIGN.md`).
+*   **`writing-plans`** (`skills/writing-plans/SKILL.md`)
+    *   *Trigger:* Use after design is approved.
+    *   *Action:* Converts design into a bite-sized Implementation Plan (`PLAN.md`).
+*   **`executing-plans`** (`skills/executing-plans/SKILL.md`)
+    *   *Trigger:* Use to execute a plan in batches.
+    *   *Action:* Sequential execution with checkpoints.
+*   **`subagent-driven-development`** (`skills/subagent-driven-development/SKILL.md`)
+    *   *Trigger:* Use for complex plans requiring specialized workers.
+    *   *Action:* Dispatches "Implementer", "Spec Reviewer", and "Code Quality Reviewer" sub-agents for each task.
+*   **`dispatching-parallel-agents`** (`skills/dispatching-parallel-agents/SKILL.md`)
+    *   *Trigger:* Use for independent tasks (e.g., fixing 3 unrelated bugs).
+    *   *Action:* Concurrent execution.
+
+### Engineering Practices
+*   **`test-driven-development`** (`skills/test-driven-development/SKILL.md`)
+    *   *Trigger:* Before writing implementation code.
+    *   *Action:* Enforces Red-Green-Refactor cycle. "No code without a failing test."
+*   **`systematic-debugging`** (`skills/systematic-debugging/SKILL.md`)
+    *   *Trigger:* When encountering bugs or test failures.
+    *   *Action:* Enforces 4-phase process: Investigation -> Pattern -> Hypothesis -> Implementation.
+*   **`verification-before-completion`** (`skills/verification-before-completion/SKILL.md`)
+    *   *Trigger:* Before claiming a task is done.
+    *   *Action:* Requires running a fresh verification command.
+
+### Review & Quality
+*   **`requesting-code-review`** (`skills/requesting-code-review/SKILL.md`)
+    *   *Trigger:* Before merging or finishing a task.
+    *   *Action:* Dispatches a `code-reviewer` agent.
+*   **`receiving-code-review`** (`skills/receiving-code-review/SKILL.md`)
+    *   *Trigger:* When processing feedback.
+    *   *Action:* Evaluation framework for feedback (verify before implementing).
+
+### Agents
+*   **`code-reviewer`** (`agents/code-reviewer.md`)
+    *   *Role:* Senior Code Reviewer. Checks plan alignment, quality, and architecture.
 
 ## Core Concepts
 - **Executable Markdown**: Files named `task.model.md` are commands.
@@ -12,34 +57,10 @@
   3. **Inject**: Stitch content back into the prompt.
   4. **Execute**: Send the final prompt to the LLM (via adapters).
 - **Template System**: LiquidJS is used for variables (`{{ _var }}`) and logic (`{% if %}`).
-- **Adapters**: Pluggable interfaces for different LLM providers (Claude, OpenAI, etc.).
 
 ## Repository Structure
 - `src/`: Source code (TypeScript).
-  - `index.ts`: Library entry point.
-  - `cli.ts`: CLI entry point (`bin/md`).
-  - `imports.ts` / `imports-parser.ts`: Core logic for parsing and resolving imports.
-  - `template.ts`: LiquidJS integration.
-  - `adapters/`: LLM provider implementations.
-  - `commands/`: Subcommands (like `create`, `explain`).
-- `test/`: Tests (using `bun test`).
-- `examples/`: Example agents.
-
-## Development Patterns
-- **Testing**: We use `bun test`. Run `bun test` to execute all tests.
-- **Imports**: All IO operations (file reading, fetching) happen in the resolution phase (`src/imports.ts`). The parser (`src/imports-parser.ts`) is pure.
-- **Security**:
-  - We use a "Safe Parser" that ignores imports inside code blocks to prevent accidental execution of example code.
-  - Binary files are detected and skipped/blocked.
-  - Command execution has timeouts and output limits.
-
-## Key Files for Navigation
-- `src/imports-parser.ts`: Start here to understand how imports are detected.
-- `src/imports.ts`: Start here to understand how imports are *processed* (IO).
-- `src/template.ts`: Variable substitution logic.
-- `src/adapters/`: How to add new AI models.
-
-## Integration Goals (Superpowers)
-We are currently integrating "Superpowers" (a set of skills and agents from `netzkontrast/superpowers`).
-- **Skills**: Reusable instructions (e.g., TDD, Debugging) to be injected into prompts.
-- **Agents**: Specialized workflows (e.g., Code Reviewer) to be executed by `mdflow`.
+- `skills/`: Passive instruction sets (Superpowers).
+- `agents/`: Executable agent definitions.
+- `ontology.md`: Entity definitions.
+- `Schema.md`: Configuration reference.
