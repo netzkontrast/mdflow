@@ -1,12 +1,39 @@
-# mdflow
+# mdflow (with Superpowers)
 
-```bash
-review.claude.md                 # Run with Claude
-commit.gemini.md "fix auth bug"  # Run with Gemini
-git diff | explain.claude.md     # Pipe through any command
-```
+> **Note:** This repository integrates the "Superpowers" methodology (Brainstorming, TDD, SDD) onto a decentralized `mdflow` architecture. See `Konzept.md` for the architectural vision.
 
-**Your markdown files are now executable AI agents.**
+`mdflow` is a CLI tool that treats Markdown files as executable AI agents. It follows the Unix philosophy of "everything is a file" and pipeable streams.
+
+## The Superpowers System
+
+We have integrated the core "Superpowers" skills and workflows into `mdflow`:
+
+1.  **Brainstorming**: Interactive design sessions (`mdflow agents/brainstorm.claude.md`).
+2.  **Planning**: Automated implementation planning (`mdflow agents/plan.claude.md`).
+3.  **Subagent Driven Development (SDD)**: "Fan-out" execution of plans using parallel workers.
+4.  **Rigorous Engineering**: Skills for TDD, Systematic Debugging, and Code Review.
+
+See [AGENTS.md](AGENTS.md) for the full Skills Library.
+
+## Documentation
+
+*   [ontology.md](ontology.md): Definitions of Agent, Skill, Workflow, and Tool.
+*   [Schema.md](Schema.md): Configuration reference for Frontmatter fields.
+*   [Konzept.md](Konzept.md): Architectural vision and migration strategy.
+
+## Vision
+
+Instead of monolithic "Agent Platforms", we believe in:
+- **Executable Markdown**: Files named `task.model.md` are commands.
+- **Composable Skills**: Imports (`@file`) allow reusing prompt logic.
+- **Pipeline Architecture**: `cat task.md | mdflow | grep "result"`
+
+## Repository Structure
+
+- `src/`: The `mdflow` runtime (TypeScript).
+- `skills/`: Passive instruction sets (The "Superpowers").
+- `agents/`: Executable agent definitions.
+- `ontology.md` & `Schema.md`: System definition.
 
 ---
 
