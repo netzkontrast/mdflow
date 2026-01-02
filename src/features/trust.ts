@@ -13,7 +13,7 @@ import { homedir } from "os";
 import { join } from "path";
 import { mkdir } from "fs/promises";
 import { confirm, select } from "@inquirer/prompts";
-import type { AgentFrontmatter } from "./types";
+import type { AgentFrontmatter } from "../core/types";
 
 const CONFIG_DIR = join(homedir(), ".mdflow");
 const KNOWN_HOSTS_FILE = join(CONFIG_DIR, "known_hosts");

@@ -5,7 +5,7 @@
  * Integrates with ProcessManager for proper cursor restoration on SIGINT/SIGTERM
  */
 
-import { getProcessManager } from "./process-manager";
+import { getProcessManager } from "../../core/execution/process-manager";
 
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 

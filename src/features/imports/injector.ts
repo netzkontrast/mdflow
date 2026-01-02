@@ -5,7 +5,7 @@
  * This is a pure function with no I/O.
  */
 
-import type { ResolvedImport } from './imports-types';
+import type { ResolvedImport } from '../../core/types';
 
 /**
  * Inject resolved imports back into the original content

@@ -5,12 +5,12 @@
  * Integrates with ProcessManager for centralized process lifecycle management
  */
 
-import type { AgentFrontmatter } from "./types";
+import type { AgentFrontmatter } from "../types";
 import { basename } from "path";
-import { teeToStdoutAndCollect, teeToStderrAndCollect, teeToStdoutWithMarkdownAndCollect } from "./stream";
-import { stopSpinner, isSpinnerRunning } from "./spinner";
+import { teeToStdoutAndCollect, teeToStderrAndCollect, teeToStdoutWithMarkdownAndCollect } from "../../utils/stream";
+import { stopSpinner, isSpinnerRunning } from "../../cli/ui/spinner";
 import { getProcessManager } from "./process-manager";
-import { createStreamingRenderer, type StreamingMarkdownRenderer } from "./markdown-renderer";
+import { createStreamingRenderer, type StreamingMarkdownRenderer } from "../../utils/markdown-renderer";
 
 /**
  * Module-level reference to the current child process

@@ -49,12 +49,12 @@ import { homedir } from "os";
 import { join, dirname, resolve } from "path";
 import { existsSync, statSync } from "fs";
 import yaml from "js-yaml";
-import type { AgentFrontmatter, GlobalConfig, CommandDefaults, RunContext } from "./types";
-import { getAdapter, buildBuiltinDefaults } from "./adapters";
+import type { AgentFrontmatter, GlobalConfig, CommandDefaults, RunContext } from "../core/types";
+import { getAdapter, buildBuiltinDefaults } from "../core/adapters/index";
 import { safeParseConfig } from "./schema";
 
 // Re-export types for convenience
-export type { GlobalConfig, CommandDefaults } from "./types";
+export type { GlobalConfig, CommandDefaults } from "../core/types";
 
 const CONFIG_DIR = join(homedir(), ".mdflow");
 const CONFIG_FILE = join(CONFIG_DIR, "config.yaml");

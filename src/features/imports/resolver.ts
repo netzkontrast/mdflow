@@ -19,7 +19,7 @@ import type {
   CommandImportAction,
   SymbolImportAction,
 } from './imports-types';
-import { Semaphore, DEFAULT_CONCURRENCY_LIMIT } from './concurrency';
+import { Semaphore, DEFAULT_CONCURRENCY_LIMIT } from '../../core/execution/concurrency';
 
 /**
  * Extract lines from content by range

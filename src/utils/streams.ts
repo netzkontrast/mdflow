@@ -6,8 +6,8 @@
  */
 
 import { Readable, Writable } from "stream";
-import type { IOStreams } from "./types";
-import { MAX_INPUT_SIZE, StdinSizeLimitError, exceedsLimit } from "./limits";
+import type { IOStreams } from "../core/types";
+import { MAX_INPUT_SIZE, StdinSizeLimitError, exceedsLimit } from "../core/agent/limits";
 
 /**
  * Create the default IO streams using process.stdin/stdout/stderr

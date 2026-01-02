@@ -9,17 +9,17 @@
  */
 
 import { dirname, resolve } from "path";
-import { parseFrontmatter } from "./parse";
-import { substituteTemplateVars, extractTemplateVars } from "./template";
-import { isRemoteUrl, fetchRemote, cleanupRemote } from "./remote";
-import { resolveCommand, buildArgs, runCommand, extractPositionalMappings, extractEnvVars, killCurrentChildProcess } from "./command";
-import { expandImports, hasImports, type ResolvedImportsTracker } from "./imports";
-import { loadEnvFiles } from "./env";
-import { loadGlobalConfig, getCommandDefaults, applyDefaults } from "./config";
-import { initLogger, getParseLogger, getTemplateLogger, getCommandLogger, getImportLogger, getCurrentLogPath } from "./logger";
+import { parseFrontmatter } from "./agent/parse";
+import { substituteTemplateVars, extractTemplateVars } from "./agent/template";
+import { isRemoteUrl, fetchRemote, cleanupRemote } from "../features/remote";
+import { resolveCommand, buildArgs, runCommand, extractPositionalMappings, extractEnvVars, killCurrentChildProcess } from "./execution/command";
+import { expandImports, hasImports, type ResolvedImportsTracker } from "../features/imports/index";
+import { loadEnvFiles } from "../features/env";
+import { loadGlobalConfig, getCommandDefaults, applyDefaults } from "../features/config";
+import { initLogger, getParseLogger, getTemplateLogger, getCommandLogger, getImportLogger, getCurrentLogPath } from "../features/logger";
 import type { AgentFrontmatter, ExecutionPlan } from "./types";
-import type { RunResult } from "./command";
-import { countTokens } from "./tokenizer";
+import type { RunResult } from "./execution/command";
+import { countTokens } from "./agent/tokenizer";
 import {
   FileNotFoundError,
   NetworkError,
@@ -27,7 +27,7 @@ import {
   TemplateError,
   HookError,
 } from "./errors";
-import { maskArgsArray } from "./secrets";
+import { maskArgsArray } from "../features/secrets";
 
 /**
  * Run a lifecycle hook command and capture its output

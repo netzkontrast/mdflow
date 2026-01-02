@@ -8,8 +8,8 @@
  * Both execution and dry-run paths MUST use these functions to ensure consistency.
  */
 
-import type { AgentFrontmatter } from "./types";
-import type { GlobalConfig } from "./config";
+import type { AgentFrontmatter } from "../types";
+import type { GlobalConfig } from "../../features/config";
 
 /**
  * Specification for a command to be executed

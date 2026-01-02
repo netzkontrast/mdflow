@@ -2,10 +2,10 @@ import { Glob } from "bun";
 import { basename, join, delimiter } from "path";
 import { realpathSync, readFileSync, existsSync } from "fs";
 import { homedir } from "os";
-import { EarlyExitRequest, UserCancelledError } from "./errors";
-import { LRUCache } from "./cache";
+import { EarlyExitRequest, UserCancelledError } from "../core/errors";
+import { LRUCache } from "../features/cache";
 // Lazy-load heavy UI dependencies only when interactive picker is needed
-import type { FileSelectorSelection } from "./file-selector";
+import type { FileSelectorSelection } from "./ui/file-selector";
 
 // Deferred imports for cold start optimization
 let _showFileSelectorWithPreview: typeof import("./file-selector").showFileSelectorWithPreview | null = null;

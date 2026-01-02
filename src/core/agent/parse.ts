@@ -1,6 +1,6 @@
 import yaml from "js-yaml";
-import type { AgentFrontmatter, ParsedMarkdown } from "./types";
-import { validateFrontmatter } from "./schema";
+import type { AgentFrontmatter, ParsedMarkdown } from "../types";
+import { validateFrontmatter } from "../../features/schema";
 
 /**
  * Strip shebang line from content if present

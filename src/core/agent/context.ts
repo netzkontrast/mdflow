@@ -5,8 +5,8 @@
  * replacing global state with explicit dependency injection.
  */
 
-import type { RunContext, RunContextOptions, Logger, GlobalConfig } from "./types";
-import { BUILTIN_DEFAULTS, mergeConfigs as mergeConfigsImpl } from "./config";
+import type { RunContext, RunContextOptions, Logger, GlobalConfig } from "../types";
+import { BUILTIN_DEFAULTS, mergeConfigs as mergeConfigsImpl } from "../../features/config";
 
 // Re-export for backward compatibility
 export { BUILTIN_DEFAULTS };
