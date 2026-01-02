@@ -3,7 +3,33 @@
 ## Overview
 `mdflow` is a CLI tool that treats Markdown files as executable AI agents. It follows the Unix philosophy of "everything is a file" and pipeable streams.
 
-For architectural details, see `ontology.md` and `Schema.md`.
+For architectural details, see `docs/reference/ontology.md` and `docs/reference/schema.md`.
+
+## Basic Rules for Repo Workflows
+
+All agents and contributors must adhere to the following workflows to ensure quality and consistency.
+
+### 1. The Agentic Workflow
+All significant tasks should follow this four-phase lifecycle:
+
+1.  **Brainstorming**: Understand the "Why" and "What". Explore requirements.
+2.  **Planning**: Create a detailed plan (using `set_plan` if you are an agent).
+3.  **Implementation**: Execute the plan iteratively.
+4.  **Review**: Verify the work against the requirements.
+
+### 2. Deep Planning & Verification
+*   **Deep Planning**: Before writing code, use the `set_plan` tool. Think deeply about the requirements. Ask clarifying questions (`request_user_input`) if anything is ambiguous.
+*   **Verification**: **Always** verify your changes. After writing a file, read it back (`read_file`) to ensure it looks correct. After running a command, check the output. **Never** mark a task as complete without verification.
+
+### 3. Documentation First
+*   If you change a feature, update the documentation in `docs/` immediately.
+*   The `AGENTS.md` file (this file) serves as the source of truth for agent behavior. Keep it updated.
+
+### 4. Subagent Driven Development (SDD)
+*   For complex tasks, use the "Fan-Out" architecture.
+*   Break tasks down into sub-tasks that can be handled by specialized agents or simpler steps.
+
+---
 
 ## Superpowers Skills Library
 The following skills are available for import. Use them via `@import skills/<category>/<skill-name>`.
@@ -62,5 +88,4 @@ The following skills are available for import. Use them via `@import skills/<cat
 - `src/`: Source code (TypeScript).
 - `skills/`: Passive instruction sets (Superpowers).
 - `agents/`: Executable agent definitions.
-- `ontology.md`: Entity definitions.
-- `Schema.md`: Configuration reference.
+- `docs/`: User and developer documentation.
