@@ -136,19 +136,19 @@ The new process flow is defined as a series of hand-offs between specialized Mar
 ### 5.3 Skill Modularization Strategy
 A key finding from the research is that "Skills" in superpowers are currently monolithic text blocks.4 The refactoring presents an opportunity to atomize these skills. mdflow supports recursive imports. A "Writing Plan" skill can import a "Format Guide" skill.
 
-The plan dictates moving all skills to `netzkontrast/superpowers/skills/` and updating the referencing syntax in all agents to use the relative path v syntax (e.g., `@./skills/brainstorming/SKILL.md`), ensuring that the skills are versioned with the repo.
+The plan dictates moving all skills to `examples/superpowers/skills/` and updating the referencing syntax in all agents to use the relative path v syntax (e.g., `@./skills/brainstorming/SKILL.md`), ensuring that the skills are versioned with the repo.
 
 ## 6. Infrastructure and Fan-Out Architecture (Agent 5: The DevOps Specialist)
 
-### 6.1 Implementing "Fan-Out" Parallelism
-One of the most sophisticated features to replicate is the parallel execution of sub-agents. Snippets suggest that superpowers uses sub-agents to perform tasks in parallel.11 "Agent Connect" likely managed thread pools for this. mdflow is single-threaded per process.
+### 6.1 Implementing "Fan-Out" Parallelism (Subagent Driven Development)
+One of the most sophisticated features to replicate is the parallel execution of sub-agents, specifically the `subagent-driven-development` skill which relies on a `Task` tool. "Agent Connect" managed thread pools for this. `mdflow` is single-threaded per process but can spawn subprocesses.
 
 The DevOps Specialist defines a "Fan-Out" architecture using standard CLI tools (`jq`, `xargs`, `parallel`). This approach leverages the operating system's process scheduler rather than a Node.js event loop, which is often more robust and easier to debug.
 
-The Fan-Out Mechanism:
+The Fan-Out Mechanism for SDD:
 1. **Generator:** The `plan.claude.md` agent is configured (via prompt engineering) to output a JSON array of task objects.
    Prompt instruction: "Output the implementation tasks as a minified JSON array."
-2. **Dispatcher:** A shell script acts as the dispatcher.
+2. **Dispatcher:** A shell script acts as the dispatcher (replacing the legacy `Task` tool logic).
    It pipes the JSON output to `jq` to parse distinct task objects.
    It uses `parallel` (GNU Parallel) or `xargs -P` to spawn multiple mdflow instances simultaneously.
 
@@ -158,8 +158,9 @@ Table 2: Fan-Out Implementation Logic
 | :--- | :--- | :--- |
 | 1. Generate | Planner Agent | `mdflow agents/plan.md > tasks.json` |
 | 2. Parse | JSON Processor | `cat tasks.json | jq -c '.'` |
-| 3. Dispatch | Shell Parallelizer | `... | parallel --jobs 4 "mdflow agents/worker.md --_task {}"` |
-| 4. Aggregate | Aggregator | `mdflow agents/summarize.md --_logs ./logs/` |
+| 3. Dispatch | Shell Parallelizer | `... | parallel --jobs 4 "mdflow agents/implementer.md --_task {}"` |
+| 4. Review | Reviewer Agent | `mdflow agents/reviewer.md --_pr {}` (Called per task) |
+| 5. Aggregate | Aggregator | `mdflow agents/summarize.md --_logs ./logs/` |
 
 This architecture 3 allows for "Map-Reduce" style processing of coding tasks. For example, a "Refactor All Tests" command can spawn 50 parallel agents, one for each test file, reducing execution time from hours to minutes.
 
