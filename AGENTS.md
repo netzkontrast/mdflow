@@ -31,7 +31,28 @@ All significant tasks should follow this four-phase lifecycle:
 *   For complex tasks, use the "Fan-Out" architecture.
 *   Break tasks down into sub-tasks that can be handled by specialized agents or simpler steps.
 
-## 3. Superpowers Skills Library
+## 3. Core Concepts
+
+### 3.1 Agents (`agents/*.md`)
+An Agent is an **Executable Markdown File**. It defines a specific "Persona" and a "Task".
+- **Location**: `agents/` (or `examples/superpowers/agents/`)
+- **Structure**:
+  - **Frontmatter**: Configuration (`model`, `temperature`, `_inputs`).
+  - **Imports**: Loads necessary **Skills**.
+  - **Prompt**: The instruction set.
+
+### 3.2 Skills (`skills/*.md`)
+A Skill is a **Reusable Instruction Module**. It contains best practices, formatting guides, or specific methodologies (e.g., TDD, Threat Modeling).
+- **Location**: `skills/` (or `examples/superpowers/skills/`)
+- **Structure**: Pure Markdown (headers, lists, examples). No frontmatter required.
+
+### 3.3 The Pipeline Architecture
+1. **Parse**: Scan for imports (`@file`, `!cmd`) and template vars.
+2. **Resolve**: Fetch content (files, URLs) and execute commands.
+3. **Inject**: Stitch content back into the prompt.
+4. **Execute**: Send the final prompt to the LLM (via adapters).
+
+## 4. Superpowers Skills Library
 The following skills are available for import. Use them via `@import skills/<category>/<skill-name>`.
 
 ### Process & Workflow
@@ -70,21 +91,52 @@ The following skills are available for import. Use them via `@import skills/<cat
     *   *Trigger:* When processing feedback.
     *   *Action:* Evaluation framework for feedback (verify before implementing).
 
-### Agents
-*   **`code-reviewer`** (`agents/code-reviewer.md`)
-    *   *Role:* Senior Code Reviewer. Checks plan alignment, quality, and architecture.
+## 5. Core Agent Specifications
 
-## 4. Core Concepts
-- **Executable Markdown**: Files named `task.model.md` are commands.
-- **Frontmatter Configuration**: YAML frontmatter (`---`) maps to CLI flags.
-- **Pipeline Architecture**:
-  1. **Parse**: Scan for imports (`@file`, `!cmd`) and template vars.
-  2. **Resolve**: Fetch content (files, URLs) and execute commands.
-  3. **Inject**: Stitch content back into the prompt.
-  4. **Execute**: Send the final prompt to the LLM (via adapters).
-- **Template System**: LiquidJS is used for variables (`{{ _var }}`) and logic (`{% if %}`).
+### 5.1 The Architect (`agents/architect.claude.md`)
+- **Role**: High-level system design and requirement gathering.
+- **Input**: User goal (interactive).
+- **Output**: `DESIGN.md` (System Architecture, Tech Stack).
+- **Required Skills**: `brainstorming.md`, `system-design.md`.
 
-## 5. Repository Structure
+### 5.2 The Planner (`agents/planner.claude.md`)
+- **Role**: Project Management. Converts design into executable steps.
+- **Input**: `DESIGN.md`.
+- **Output**: `PLAN.md` (Task list, often minified JSON for automation).
+- **Required Skills**: `writing-plans.md`, `json-schema.md`.
+
+### 5.3 The Engineer (`agents/engineer.claude.md`)
+- **Role**: Implementation. Writes code, tests, and config.
+- **Input**: A single Task from `PLAN.md`.
+- **Output**: File changes.
+- **Required Skills**: `tdd.md`, `clean-code.md`, `language-specific/*.md`.
+- **Note**: This agent is often run in "Fan-Out" mode (multiple instances in parallel).
+
+### 5.4 The Reviewer (`agents/reviewer.claude.md`)
+- **Role**: QA and Security.
+- **Input**: `git diff` or specific files.
+- **Output**: Critique or "LGTM".
+- **Required Skills**: `security-audit.md`, `code-style.md`.
+
+## 6. Development Guidelines
+
+### 6.1 Writing Skills
+- **Keep it Atomic**: A skill should do one thing well (e.g., "Write Python Docstrings").
+- **Use Examples**: LLMs learn best from "Few-Shot" examples (Good vs. Bad).
+- **Version Control**: Skills are code. Commit them.
+
+### 6.2 Writing Agents
+- **Inherit Config**: Use `mdflow` defaults where possible.
+- **Use Inputs**: Use `_inputs` frontmatter for interactive agents.
+- **State via Files**: Agents are stateless. Read from files (`@PLAN.md`), write to files.
+
+### 6.3 Testing Agents (The Shim Strategy)
+To verify agent behavior without non-deterministic LLM calls:
+1. Run with `--_dry-run`.
+2. Capture the **Final Prompt**.
+3. Diff against a "Golden Prompt" to ensure skills are imported correctly.
+
+## 7. Repository Structure
 - `src/`: Source code (TypeScript).
 - `skills/`: Passive instruction sets (Superpowers).
 - `agents/`: Executable agent definitions.
