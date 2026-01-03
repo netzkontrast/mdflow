@@ -1,6 +1,6 @@
 # The `mdflow` Examples Tour
 
-This guide demonstrates 10 progressively more impressive ways to use `mdflow` (`md`). We start with basic scripts and end with a self-orchestrating swarm that works in parallel across multiple git worktrees.
+This guide demonstrates 11 progressively more impressive ways to use `mdflow` (`md`). We start with basic scripts and end with a full-blown "Superpowers" AI software factory.
 
 ---
 
@@ -297,13 +297,61 @@ md 10-architect.claude.md --_goal "Build a login page with a fastify backend" | 
 
 ---
 
+## 11. The Superpowers Framework
+
+**Concept:** *The Superpowers Loop (Brainstorm -> Plan -> Execute)*
+The ultimate pattern for complex software engineering.
+
+**Structure:**
+- `skills/*.md` (Reusable instructions)
+- `agents/*.md` (Executable personas)
+
+**The Brainstorm Agent:** `agents/brainstorm.claude.md`
+```markdown
+---
+model: opus
+_interactive: true
+---
+You are a Software Architect.
+@../skills/requirements-gathering.md
+```
+
+**The Planner Agent:** `agents/plan.claude.md`
+```markdown
+---
+model: sonnet
+---
+Read the design doc and create a task list.
+Context:
+@./DESIGN.md
+Skill:
+@../skills/writing-plans.md
+```
+
+**The Implementer:** `agents/code.claude.md`
+```markdown
+---
+model: sonnet
+_task: ""
+---
+Implement this task: {{ _task }}
+@../skills/tdd.md
+```
+
+**Run the Loop:**
+1. `md agents/brainstorm.claude.md` (Creates DESIGN.md)
+2. `md agents/plan.claude.md > PLAN.md` (Creates PLAN.md)
+3. `md agents/code.claude.md --_task "Setup React"` (Executes)
+
+---
+
 # Part 2: The UX Tour
 
 While Part 1 focused on power and complexity, Part 2 focuses on **User Experience (UX)**. These examples demonstrate features designed to make working with AI agents safe, interactive, and easy to understand for your team.
 
 ---
 
-## 11. The Interactive Wizard
+## 12. The Interactive Wizard
 
 **Concept:** *Variable Recovery*
 **UX Problem:** You wrote a prompt with variables, but you don't want to memorize the flags.
@@ -343,7 +391,7 @@ Missing required variables. Please provide values:
 
 ---
 
-## 12. The Safety Net (Dry Run)
+## 13. The Safety Net (Dry Run)
 
 **Concept:** *Trust & Verification*
 **UX Problem:** You are about to run an agent on your entire codebase, but you're nervous about token costs or context size.
@@ -378,7 +426,7 @@ Estimated tokens: ~15,420
 
 ---
 
-## 13. The Native Binary
+## 14. The Native Binary
 
 **Concept:** *Shebang Support*
 **UX Problem:** Typing `md filename.md` feels like running a script. You want it to feel like a native system command.
@@ -407,7 +455,7 @@ chmod +x daily-report
 
 ---
 
-## 14. The "Knobs & Dials" Interface
+## 15. The "Knobs & Dials" Interface
 
 **Concept:** *Template Variables with Defaults*
 **UX Problem:** You want to expose configuration settings (defaults) that users can easily override via flags.
@@ -445,7 +493,7 @@ md 14-translator.gpt.md --_text "Hello World" --_lang "Pirate" --_tone "Aggressi
 
 ---
 
-## 15. The Context Surgeon
+## 16. The Context Surgeon
 
 **Concept:** *Symbol Extraction*
 **UX Problem:** Importing entire files is wasteful and distracting when you only need one specific interface.
@@ -470,7 +518,7 @@ Ensure it returns a type matching:
 
 ---
 
-## 16. The "Context Pack"
+## 17. The "Context Pack"
 
 **Concept:** *Recursive Imports*
 **UX Problem:** You constantly have to import the same 5 files (auth, database, types) for every task.
@@ -501,7 +549,7 @@ Review the authentication flow for security holes.
 
 ---
 
-## 17. The Secret Keeper
+## 18. The Secret Keeper
 
 **Concept:** *Environment Isolation*
 **UX Problem:** You need API keys in your prompts but can't commit them to Git.
@@ -529,7 +577,7 @@ Write a curl command to check the health of:
 
 ---
 
-## 18. The Chameleon (Polymorphism)
+## 19. The Chameleon (Polymorphism)
 
 **Concept:** *Command Override*
 **UX Problem:** You want to A/B test a prompt against different models without creating multiple files.
@@ -555,7 +603,7 @@ md 18-story.md -c gemini --model gemini-1.5-flash
 
 ---
 
-## 19. The Black Box Recorder
+## 20. The Black Box Recorder
 
 **Concept:** *Structured Logging*
 **UX Problem:** An agent hallucinated or failed, and you need to see exactly what was sent to the API.
@@ -588,7 +636,7 @@ md logs
 
 ---
 
-## 20. The "Meta" Agent
+## 21. The "Meta" Agent
 
 **Concept:** *Self-Replication*
 **UX Problem:** Creating new agents takes time.
@@ -627,7 +675,7 @@ These examples demonstrate the latest features added to mdflow.
 
 ---
 
-## 21. The Form Builder
+## 22. The Form Builder
 
 **Concept:** *Typed Interactive Inputs*
 **UX Problem:** You want a proper form with different input types, not just text prompts.
@@ -668,7 +716,7 @@ md 21-deploy-wizard.claude.md
 
 ---
 
-## 22. The Inspector
+## 23. The Inspector
 
 **Concept:** *Configuration Debugging*
 **UX Problem:** Your agent isn't running as expected, and you need to see what's actually being sent.
@@ -702,7 +750,7 @@ md explain review.claude.md
 
 ---
 
-## 23. The Preflight Check
+## 24. The Preflight Check
 
 **Concept:** *Context Visualization*
 **UX Problem:** You're importing many files and want to verify the context before sending to the LLM.
@@ -741,7 +789,7 @@ md 23-review-all.claude.md --_context
 
 ---
 
-## 24. The Editor's Cut
+## 25. The Editor's Cut
 
 **Concept:** *Edit Before Execute*
 **UX Problem:** You want to tweak the final prompt after all imports are resolved.
@@ -769,7 +817,7 @@ Your `$EDITOR` opens with the fully expanded prompt. Make any changes, save, and
 
 ---
 
-## 25. The Pretty Printer
+## 26. The Pretty Printer
 
 **Concept:** *Rich Terminal Output*
 **UX Problem:** LLM output with code blocks looks ugly in the terminal.
@@ -791,7 +839,7 @@ md generate-json.claude.md --raw | jq .
 
 ---
 
-## 26. The History Buff
+## 27. The History Buff
 
 **Concept:** *Frecency-Based File Picker*
 **UX Problem:** You have many agents and finding the right one takes time.

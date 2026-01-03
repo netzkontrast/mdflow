@@ -1,5 +1,6 @@
 # mdflow
 
+**The "Superpowers" Engine for AI Engineering.**
 > **Note:** This repository integrates the "Superpowers" methodology (Brainstorming, TDD, SDD) onto a decentralized `mdflow` architecture.
 
 `mdflow` is a CLI tool that treats Markdown files as executable AI agents. It follows the Unix philosophy of "everything is a file" and pipeable streams.
@@ -18,6 +19,8 @@ Full documentation is available in the [`docs/`](docs/) directory.
 1.  **Install**:
     ```bash
     npm install -g mdflow
+    # or
+    bun install && bun link
     ```
 2.  **Create an Agent**:
     ```bash
