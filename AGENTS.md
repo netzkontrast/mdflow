@@ -1,11 +1,11 @@
-# mdflow Knowledge Base & Agent Specifications
+# mdflow Knowledge Base & Skills Library
 
 ## 1. Overview: The "Superpowers" Architecture
 This repository implements the "Superpowers" methodology using `mdflow`. The core philosophy is to decompose complex software engineering tasks into discrete, composable **Agents** that share a common library of **Skills**.
 
 Instead of a monolithic "AI coding tool," we treat the development process as a pipeline of specialized roles (Agents) collaborating through standard interfaces (Markdown files).
 
-For architectural details, see `docs/reference/ontology.md` and `docs/reference/schema.md`.
+For architectural details, see `docs/reference.md` and `docs/architecture.md`.
 
 ## 2. Basic Rules for Repo Workflows
 
@@ -57,11 +57,12 @@ A Skill is a **Reusable Instruction Module**. It contains best practices, format
 - **Location**: `skills/` (or `examples/superpowers/skills/`)
 - **Structure**: Pure Markdown (headers, lists, examples). No frontmatter required.
 
-### 3.3 The Pipeline Architecture
-1. **Parse**: Scan for imports (`@file`, `!cmd`) and template vars.
-2. **Resolve**: Fetch content (files, URLs) and execute commands.
-3. **Inject**: Stitch content back into the prompt.
-4. **Execute**: Send the final prompt to the LLM (via adapters).
+### 3.3 The Workflow (The Loop)
+The "Superpowers" loop consists of four phases:
+1. **Brainstorm** (`commands/brainstorm.md`): Clarify requirements, output `DESIGN.md`.
+2. **Plan** (`commands/write-plan.md`): Break design into tasks, output `PLAN.md` (JSON/List).
+3. **Implement** (`commands/execute-plan.md`): Execute tasks (often in parallel/fan-out).
+4. **Review**: Critique changes against `DESIGN.md`.
 
 ### 3.4 Commands (`commands/*.md`)
 Commands are executable markdown files located in `/commands/` that orchestrate workflows using multiple skills in a specific order.
@@ -146,27 +147,16 @@ The following skills are available for import. Use them via `@import skills/<cat
 - **Output**: Critique or "LGTM".
 - **Required Skills**: `security-audit.md`, `code-style.md`.
 
-## 6. Development Guidelines
-
-### 6.1 Writing Skills
-- **Keep it Atomic**: A skill should do one thing well (e.g., "Write Python Docstrings").
-- **Use Examples**: LLMs learn best from "Few-Shot" examples (Good vs. Bad).
-- **Version Control**: Skills are code. Commit them.
-
-### 6.2 Writing Agents
-- **Inherit Config**: Use `mdflow` defaults where possible.
-- **Use Inputs**: Use `_inputs` frontmatter for interactive agents.
-- **State via Files**: Agents are stateless. Read from files (`@PLAN.md`), write to files.
-
-### 6.3 Testing Agents (The Shim Strategy)
-To verify agent behavior without non-deterministic LLM calls:
-1. Run with `--_dry-run`.
-2. Capture the **Final Prompt**.
-3. Diff against a "Golden Prompt" to ensure skills are imported correctly.
+## 6. Commands
+Commands are executable markdown files located in `/commands/` that orchestrate workflows.
+*   **`brainstorm`** (`commands/brainstorm.md`): Invokes the brainstorming skill.
+*   **`write-plan`** (`commands/write-plan.md`): Invokes the writing-plans skill.
+*   **`execute-plan`** (`commands/execute-plan.md`): Invokes the executing-plans skill.
 
 ## 7. Repository Structure
 - `src/`: Source code (TypeScript).
 - `skills/`: Passive instruction sets (Superpowers).
 - `agents/`: Executable agent definitions.
 - `commands/`: Executable commands for workflows.
+- `docs/reference.md`: Entity definitions and Configuration reference.
 - `docs/`: User and developer documentation.
