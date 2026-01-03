@@ -64,6 +64,9 @@ The "Superpowers" loop consists of four phases:
 3. **Implement** (`commands/execute-plan.md`): Execute tasks (often in parallel/fan-out).
 4. **Review**: Critique changes against `DESIGN.md`.
 
+### 3.4 Commands (`commands/*.md`)
+Commands are executable markdown files located in `/commands/` that orchestrate workflows using multiple skills in a specific order.
+
 ## 4. Superpowers Skills Library
 The following skills are available for import. Use them via `@import skills/<category>/<skill-name>/SKILL.md`.
 
@@ -156,3 +159,4 @@ Commands are executable markdown files located in `/commands/` that orchestrate 
 - `agents/`: Executable agent definitions.
 - `commands/`: Executable commands for workflows.
 - `docs/reference.md`: Entity definitions and Configuration reference.
+- `docs/`: User and developer documentation.

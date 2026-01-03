@@ -55,6 +55,39 @@ Review this code for bugs and suggest improvements.
 ```
 
 `mdflow` treats Markdown files as **Executable Agents**. It provides the runtime environment to implement the "Superpowers" methodology—a decentralized, file-centric approach to AI software development.
+*   [**Guide**](docs/guide/index.md): The comprehensive user guide and examples tour.
+*   [**Architecture**](docs/architecture/concept.md): The architectural vision (`Konzept.md`).
+*   [**Reference**](docs/reference/schema.md): Schema and Ontology definitions.
+*   [**Internal**](docs/internal/claude.md): Developer guide for Claude integration.
+
+## Quick Start
+
+1.  **Install**:
+    ```bash
+    npm install -g mdflow
+    # or
+    bun install && bun link
+    ```
+2.  **Create an Agent**:
+    ```bash
+    # task.claude.md
+    echo "Explain quantum computing" > task.claude.md
+    ```
+3.  **Run**:
+    ```bash
+    mdflow task.claude.md
+    ```
+
+## Superpowers & Agents
+
+See [AGENTS.md](AGENTS.md) for the Skills Library and Workflow Rules.
+
+---
+
+## 🚀 Quick Start (Superpowers)
+
+### 1. The Superpowers Workflow
+We have integrated the core "Superpowers" skills and workflows into `mdflow`:
 
 ```bash
 # The Superpowers Workflow
@@ -119,7 +152,8 @@ _inputs:
     description: "What should I build?"
 ---
 You are an Expert Developer.
-@../skills/tdd.md
+
+@../skills/testing/test-driven-development/SKILL.md
 
 Task: {{ _task }}
 ```
