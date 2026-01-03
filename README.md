@@ -18,9 +18,9 @@ See [AGENTS.md](AGENTS.md) for the full Skills Library.
 
 ## Documentation
 
-*   [ontology.md](ontology.md): Definitions of Agent, Skill, Workflow, and Tool.
-*   [Schema.md](Schema.md): Configuration reference for Frontmatter fields.
-*   [Konzept.md](Konzept.md): Architectural vision and migration strategy.
+*   [reference.md](docs/reference.md): Definitions of Agent, Skill, Workflow, Tool, and Configuration Schema.
+*   [architecture.md](docs/architecture.md): Architectural vision and migration strategy.
+*   [technical.md](docs/technical.md): Technical documentation of the source code.
 
 ## Vision
 
@@ -163,8 +163,10 @@ Deploy to {{ _env }}.
 ## 📖 Documentation
 
 - **[AGENTS.md](./AGENTS.md)**: The "Superpowers" Knowledge Base & Spec.
-- **[GUIDE.md](./GUIDE.md)**: 10+ Examples of `mdflow` in action.
-- **[Konzept.md](./Konzept.md)**: The architectural vision behind the framework.
+- **[Guide](./docs/guide.md)**: 10+ Examples of `mdflow` in action.
+- **[Architecture](./docs/architecture.md)**: The architectural vision behind the framework.
+- **[Reference](./docs/reference.md)**: Ontology and Schema.
+- **[Technical](./docs/technical.md)**: Source code documentation.
 
 ---
 

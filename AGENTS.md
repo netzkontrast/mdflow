@@ -95,7 +95,7 @@ To verify agent behavior without non-deterministic LLM calls:
 ## Overview
 `mdflow` is a CLI tool that treats Markdown files as executable AI agents. It follows the Unix philosophy of "everything is a file" and pipeable streams.
 
-For architectural details, see `ontology.md` and `Schema.md`.
+For architectural details, see `docs/reference.md` and `docs/architecture.md`.
 
 ## Superpowers Skills Library
 The following skills are available for import. Use them via `@import skills/<category>/<skill-name>/SKILL.md`.
@@ -175,5 +175,4 @@ Commands are executable markdown files located in `/commands/` that orchestrate 
 - `skills/`: Passive instruction sets (Superpowers).
 - `agents/`: Executable agent definitions.
 - `commands/`: Executable commands for workflows.
-- `ontology.md`: Entity definitions.
-- `Schema.md`: Configuration reference.
+- `docs/reference.md`: Entity definitions and Configuration reference.
