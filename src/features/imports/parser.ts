@@ -57,12 +57,14 @@ function invertRanges(codeRegions: Range[], contentLength: number): Range[] {
  * Returns an array of "safe" ranges where imports can be parsed.
  * Exported for unit testing.
  */
+// Initialize processor once to avoid repeated overhead
+const processor = unified().use(remarkParse);
+
 export function findSafeRanges(content: string): Range[] {
   if (content.length === 0) {
     return [];
   }
 
-  const processor = unified().use(remarkParse);
   const ast = processor.parse(content) as Root;
 
   // Collect all code regions (fenced + inline)
