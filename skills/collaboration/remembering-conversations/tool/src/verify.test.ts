@@ -144,7 +144,7 @@ describe('repairIndex', () => {
     expect(afterCount.count).toBe(0);
     dbAfter.close();
   });
-  it('re-indexes outdated files during repair', { timeout: 30000 }, async () => {
+  it('re-indexes outdated files during repair', async () => {
     const projectArchive = path.join(archiveDir, 'test-project');
     fs.mkdirSync(projectArchive, { recursive: true });
     const conversationPath = path.join(projectArchive, 'outdated-repair.jsonl');

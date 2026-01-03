@@ -1,9 +1,9 @@
 import { expect, test, describe, beforeEach, afterEach } from "bun:test";
-import { findAgentFiles, clearDescriptionCache, type AgentFile } from "./cli";
+import { findAgentFiles, clearDescriptionCache, type AgentFile } from "../cli";
 import { mkdirSync, writeFileSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
-import { saveCwdAndPath } from "./test-utils";
+import { saveCwdAndPath } from "../../utils/test-utils";
 
 describe("findAgentFiles", () => {
   let testDir: string;

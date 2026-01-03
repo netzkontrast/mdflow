@@ -1,5 +1,5 @@
 import { expect, test, describe } from "bun:test";
-import { extractTemplateVars } from "./template";
+import { extractTemplateVars } from "../../core/agent/template";
 
 /**
  * Tests for interactive variable recovery feature.
@@ -166,7 +166,7 @@ import {
   saveVariableValues,
   getPreviousVariableValue,
   resetVariableHistory,
-} from "./history";
+} from "../../features/history";
 
 describe("variable persistence", () => {
   describe("prompt with previous value as default", () => {
