@@ -9,8 +9,8 @@
 
 We have integrated the core "Superpowers" skills and workflows into `mdflow`:
 
-1.  **Brainstorming**: Interactive design sessions (`mdflow agents/brainstorm.claude.md`).
-2.  **Planning**: Automated implementation planning (`mdflow agents/plan.claude.md`).
+1.  **Brainstorming**: Interactive design sessions.
+2.  **Planning**: Automated implementation planning.
 3.  **Subagent Driven Development (SDD)**: "Fan-out" execution of plans using parallel workers.
 4.  **Rigorous Engineering**: Skills for TDD, Systematic Debugging, and Code Review.
 
@@ -34,6 +34,7 @@ Instead of monolithic "Agent Platforms", we believe in:
 - `src/`: The `mdflow` runtime (TypeScript).
 - `skills/`: Passive instruction sets (The "Superpowers").
 - `agents/`: Executable agent definitions.
+- `commands/`: Executable commands for workflows.
 - `ontology.md` & `Schema.md`: System definition.
 
 ---
@@ -48,14 +49,15 @@ Markdown files become first-class CLI commands. Write a prompt in markdown, run 
 model: opus
 ---
 Review this code for bugs and suggest improvements.
+```
 
 `mdflow` treats Markdown files as **Executable Agents**. It provides the runtime environment to implement the "Superpowers" methodology—a decentralized, file-centric approach to AI software development.
 
 ```bash
 # The Superpowers Workflow
-md agents/brainstorm.claude.md   # Interactive design session
-md agents/plan.claude.md         # Generate execution plan
-md agents/implement.codex.md     # Execute the plan
+md commands/brainstorm.md   # Interactive design session
+md commands/write-plan.md   # Generate execution plan
+md commands/execute-plan.md # Execute the plan
 ```
 
 ---
@@ -81,6 +83,10 @@ my-project/
 ├── agents/                  # Your Executable Agents
 │   ├── architect.claude.md
 │   └── developer.codex.md
+├── commands/                # Workflow Commands
+│   ├── brainstorm.md
+│   ├── write-plan.md
+│   └── execute-plan.md
 ├── DESIGN.md                # Generated Context
 └── PLAN.md                  # Generated Context
 ```
