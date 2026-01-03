@@ -4,7 +4,7 @@ import type {
   TestUIConfig,
   Choice,
   RecordedPrompt,
-} from "./ui";
+} from "./legacy-ui";
 import {
   ConsoleUI,
   TestUI,
@@ -13,7 +13,7 @@ import {
   resetUI,
   createAutoApproveUI,
   createAutoRejectUI,
-} from "./ui";
+} from "./legacy-ui";
 
 describe("TestUI", () => {
   describe("confirm", () => {

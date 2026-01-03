@@ -6,8 +6,8 @@
  */
 
 import { describe, it, expect } from 'bun:test';
-import { injectImports, createResolvedImport } from './imports-injector';
-import type { ResolvedImport, ImportAction } from './imports-types';
+import { injectImports, createResolvedImport } from './injector';
+import type { ResolvedImport, ImportAction } from './types';
 
 describe('injectImports', () => {
   describe('basic injection', () => {

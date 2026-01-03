@@ -35,3 +35,41 @@ Full documentation is available in the [`docs/`](docs/) directory.
 ## Superpowers & Agents
 
 See [AGENTS.md](AGENTS.md) for the Skills Library and Workflow Rules.
+
+---
+
+## 🚀 Quick Start (Superpowers)
+
+### 1. The Superpowers Workflow
+We have integrated the core "Superpowers" skills and workflows into `mdflow`:
+
+```bash
+# The Superpowers Workflow
+md commands/brainstorm.md   # Interactive design session
+md commands/write-plan.md   # Generate execution plan
+md commands/execute-plan.md # Execute the plan
+```
+
+### 2. Create Your First Agent
+
+Create `agents/coder.claude.md`:
+
+```markdown
+---
+model: claude-3-5-sonnet
+_inputs:
+  _task:
+    type: text
+    description: "What should I build?"
+---
+You are an Expert Developer.
+@../skills/testing/test-driven-development/SKILL.md
+
+Task: {{ _task }}
+```
+
+### 3. Run It
+
+```bash
+md agents/coder.claude.md
+```
