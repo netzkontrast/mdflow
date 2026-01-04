@@ -13,7 +13,7 @@ import {
   parseLineRange,
   parseSymbolExtraction,
   findSafeRanges,
-} from './imports-parser';
+} from './parser';
 
 describe('parseImports', () => {
   describe('file imports', () => {
