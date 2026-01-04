@@ -11,7 +11,7 @@ import {
   parseImports,
   hasImportsInContent,
   findSafeRanges,
-} from './imports-parser';
+} from './parser';
 
 describe('imports-parser fuzz tests', () => {
   describe('parseImports never throws', () => {
