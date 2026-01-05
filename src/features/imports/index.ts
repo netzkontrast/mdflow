@@ -23,6 +23,9 @@ async function getIgnore(): Promise<IgnoreFactory> {
   return _ignoreFactory;
 }
 
+/** Cache for loadGitignore results */
+const gitignoreCache = new Map<string, ReturnType<typeof import("ignore")>["default"]>();
+
 /**
  * TTY Dashboard for monitoring parallel command execution
  * Handles rendering stacked spinners and live output previews
@@ -466,8 +469,16 @@ function extractSymbol(content: string, symbolName: string): string {
 /**
  * Load .gitignore patterns from directory and parents
  * Lazy-loads the ignore package on first use
+ *
+ * Bolt Optimization: Cached to prevent re-walking the file system for multiple glob imports
+ * in the same directory structure.
  */
 async function loadGitignore(dir: string): Promise<ReturnType<Awaited<ReturnType<typeof getIgnore>>>> {
+  // Check cache first
+  if (gitignoreCache.has(dir)) {
+    return gitignoreCache.get(dir) as ReturnType<Awaited<ReturnType<typeof getIgnore>>>;
+  }
+
   const ignore = await getIgnore();
   const ig = ignore();
 
@@ -501,6 +512,8 @@ async function loadGitignore(dir: string): Promise<ReturnType<Awaited<ReturnType
     currentDir = dirname(currentDir);
   }
 
+  // Cache the result
+  gitignoreCache.set(dir, ig);
   return ig;
 }
 
