@@ -1,5 +1,5 @@
 import { test, expect, beforeAll, afterAll, describe } from "bun:test";
-import { expandImports, hasImports, toCanonicalPath, isMarkdownFileCommand } from "./imports";
+import { expandImports, hasImports, toCanonicalPath, isMarkdownFileCommand } from "./index";
 import { mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
