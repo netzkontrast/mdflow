@@ -23,6 +23,10 @@ async function getIgnore(): Promise<IgnoreFactory> {
   return _ignoreFactory;
 }
 
+// Caches for loadGitignore optimization to avoid redundant I/O
+// Cache for .gitignore file content (or null if not found)
+const gitignoreCache = new Map<string, string[] | null>();
+
 /**
  * TTY Dashboard for monitoring parallel command execution
  * Handles rendering stacked spinners and live output previews
@@ -485,11 +489,23 @@ async function loadGitignore(dir: string): Promise<ReturnType<Awaited<ReturnType
 
   while (currentDir !== root) {
     const gitignorePath = resolve(currentDir, ".gitignore");
-    const file = Bun.file(gitignorePath);
 
-    if (await file.exists()) {
-      const content = await file.text();
-      ig.add(content.split("\n").filter(line => line.trim() && !line.startsWith("#")));
+    // Check cache for .gitignore content
+    let rules = gitignoreCache.get(gitignorePath);
+
+    if (rules === undefined) {
+      const file = Bun.file(gitignorePath);
+      if (await file.exists()) {
+        const content = await file.text();
+        rules = content.split("\n").filter(line => line.trim() && !line.startsWith("#"));
+      } else {
+        rules = null;
+      }
+      gitignoreCache.set(gitignorePath, rules);
+    }
+
+    if (rules) {
+      ig.add(rules);
     }
 
     // Stop at git root
