@@ -24,6 +24,12 @@ async function getIgnore(): Promise<IgnoreFactory> {
 }
 
 /**
+ * Cache for gitignore instances to avoid repeated filesystem traversals
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const gitignoreCache = new Map<string, any>();
+
+/**
  * TTY Dashboard for monitoring parallel command execution
  * Handles rendering stacked spinners and live output previews
  */
@@ -468,6 +474,10 @@ function extractSymbol(content: string, symbolName: string): string {
  * Lazy-loads the ignore package on first use
  */
 async function loadGitignore(dir: string): Promise<ReturnType<Awaited<ReturnType<typeof getIgnore>>>> {
+  if (gitignoreCache.has(dir)) {
+    return gitignoreCache.get(dir);
+  }
+
   const ignore = await getIgnore();
   const ig = ignore();
 
@@ -501,6 +511,7 @@ async function loadGitignore(dir: string): Promise<ReturnType<Awaited<ReturnType
     currentDir = dirname(currentDir);
   }
 
+  gitignoreCache.set(dir, ig);
   return ig;
 }
 
