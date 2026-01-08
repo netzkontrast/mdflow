@@ -246,10 +246,9 @@ export async function isBinaryFileAsync(filePath: string): Promise<boolean> {
   const buffer = await file.slice(0, BINARY_CHECK_SIZE).arrayBuffer();
   const bytes = new Uint8Array(buffer);
 
-  for (let i = 0; i < bytes.length; i++) {
-    if (bytes[i] === 0) {
-      return true;
-    }
+  // Optimized check using native implementation
+  if (bytes.includes(0)) {
+    return true;
   }
 
   return false;
@@ -463,6 +462,10 @@ function extractSymbol(content: string, symbolName: string): string {
   throw new Error(`Symbol "${symbolName}" not found in file`);
 }
 
+// Cache for .gitignore contents and .git directory existence to reduce I/O
+const gitignoreCache = new Map<string, string | null>(); // path -> content or null (if not exists)
+const gitDirCache = new Map<string, boolean>(); // path -> exists
+
 /**
  * Load .gitignore patterns from directory and parents
  * Lazy-loads the ignore package on first use
@@ -485,16 +488,38 @@ async function loadGitignore(dir: string): Promise<ReturnType<Awaited<ReturnType
 
   while (currentDir !== root) {
     const gitignorePath = resolve(currentDir, ".gitignore");
-    const file = Bun.file(gitignorePath);
 
-    if (await file.exists()) {
-      const content = await file.text();
+    // Check cache for gitignore content
+    let content: string | null;
+    if (gitignoreCache.has(gitignorePath)) {
+      content = gitignoreCache.get(gitignorePath)!;
+    } else {
+      const file = Bun.file(gitignorePath);
+      if (await file.exists()) {
+        content = await file.text();
+      } else {
+        content = null;
+      }
+      gitignoreCache.set(gitignorePath, content);
+    }
+
+    if (content !== null) {
       ig.add(content.split("\n").filter(line => line.trim() && !line.startsWith("#")));
     }
 
     // Stop at git root
     const gitDir = resolve(currentDir, ".git");
-    if (await Bun.file(gitDir).exists()) {
+
+    // Check cache for git dir existence
+    let hasGitDir: boolean;
+    if (gitDirCache.has(gitDir)) {
+      hasGitDir = gitDirCache.get(gitDir)!;
+    } else {
+      hasGitDir = await Bun.file(gitDir).exists();
+      gitDirCache.set(gitDir, hasGitDir);
+    }
+
+    if (hasGitDir) {
       break;
     }
 
