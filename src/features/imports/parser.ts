@@ -62,6 +62,30 @@ export function findSafeRanges(content: string): Range[] {
     return [];
   }
 
+  // OPTIMIZATION: Fast path for content without code blocks
+  // If there are no backticks, tildes, or indented blocks, the whole content is safe.
+  // This avoids the expensive unified() parser for the majority of files.
+  //
+  // Indented code blocks start with 4 spaces or a tab at the beginning of a line.
+  // We use a regex to check for this.
+  const hasBackticks = content.includes('`');
+  const hasTildes = content.includes('~');
+
+  if (!hasBackticks && !hasTildes) {
+    // Check for indented code blocks (4 spaces or tab at start of line)
+    // We use a multiline regex. This is faster than parsing AST.
+    const hasIndentedBlock = /^(\t| {4})/m.test(content);
+
+    // Also check for potential nested code blocks in lists or blockquotes
+    // If the content has list markers or blockquotes, we fall back to full parsing
+    // to be safe, as they might contain indented code blocks.
+    const hasPotentialNestedBlocks = /^[ \t]*([*+-]|\d+\.|>)/m.test(content);
+
+    if (!hasIndentedBlock && !hasPotentialNestedBlocks) {
+      return [{ start: 0, end: content.length }];
+    }
+  }
+
   const processor = unified().use(remarkParse);
   const ast = processor.parse(content) as Root;
 
