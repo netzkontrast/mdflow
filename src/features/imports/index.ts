@@ -251,6 +251,29 @@ export async function isBinaryFileAsync(filePath: string): Promise<boolean> {
   return bytes.includes(0);
 }
 
+/**
+ * Read text file content, returning null if binary.
+ * Optimizes I/O by avoiding double reads for small files.
+ */
+async function readTextOrBinary(bunFile: import("bun").BunFile): Promise<string | null> {
+  // For small files (<8KB), read entire file and check buffer
+  // This avoids reading the file twice (once for check, once for content)
+  if (bunFile.size <= BINARY_CHECK_SIZE) {
+    const buffer = await bunFile.arrayBuffer();
+    if (new Uint8Array(buffer).includes(0)) {
+      return null;
+    }
+    return new TextDecoder().decode(buffer);
+  } else {
+    // For large files, check first chunk first
+    const chunk = await bunFile.slice(0, BINARY_CHECK_SIZE).arrayBuffer();
+    if (new Uint8Array(chunk).includes(0)) {
+      return null;
+    }
+    return await bunFile.text();
+  }
+}
+
 /** Maximum token count before error (approx 4 chars per token) */
 export const MAX_TOKENS = 100_000;
 /** Warning threshold for high token count */
@@ -732,12 +755,6 @@ async function processGlobImport(
       continue;
     }
 
-    // Check if file is binary (skip with warning in glob imports)
-    if (await isBinaryFileAsync(file)) {
-      skippedBinaryFiles.push(relativePath);
-      continue;
-    }
-
     const bunFile = Bun.file(file);
 
     // Check individual file size before reading
@@ -745,7 +762,29 @@ async function processGlobImport(
       throw new FileSizeLimitError(file, bunFile.size);
     }
 
-    const content = await bunFile.text();
+    // Check extension first (fast path)
+    if (isBinaryFile(file)) {
+      skippedBinaryFiles.push(relativePath);
+      continue;
+    }
+
+    // Optimized binary check and content reading
+    // For small files (<8KB), read entire file and check buffer to avoid double read
+    // For large files, check first chunk first
+    let content: string;
+    try {
+      const result = await readTextOrBinary(bunFile);
+      if (result === null) {
+        skippedBinaryFiles.push(relativePath);
+        continue;
+      }
+      content = result;
+    } catch (error) {
+      if (verbose) {
+        console.error(`[imports] Error reading file ${file}: ${(error as Error).message}`);
+      }
+      continue;
+    }
     totalChars += content.length;
 
     files.push({ path: relativePath, content });
@@ -837,16 +876,19 @@ async function processFileImport(
       throw new FileSizeLimitError(resolvedPath, file.size);
     }
 
-    // Check for binary file (throw error for direct imports)
-    if (await isBinaryFileAsync(resolvedPath)) {
+    // Check extension first (fast path)
+    if (isBinaryFile(resolvedPath)) {
+      throw new Error(`Cannot import binary file: ${symbolParsed.path} (resolved to ${resolvedPath})`);
+    }
+
+    const content = await readTextOrBinary(file);
+    if (content === null) {
       throw new Error(`Cannot import binary file: ${symbolParsed.path} (resolved to ${resolvedPath})`);
     }
 
     if (verbose) {
       console.error(`[imports] Extracting symbol "${symbolParsed.symbol}" from: ${symbolParsed.path}`);
     }
-
-    const content = await file.text();
     // Track the resolved import
     if (resolvedImports) {
       resolvedImports.push(importPath);
@@ -869,16 +911,19 @@ async function processFileImport(
       throw new FileSizeLimitError(resolvedPath, file.size);
     }
 
-    // Check for binary file (throw error for direct imports)
-    if (await isBinaryFileAsync(resolvedPath)) {
+    // Check extension first (fast path)
+    if (isBinaryFile(resolvedPath)) {
+      throw new Error(`Cannot import binary file: ${rangeParsed.path} (resolved to ${resolvedPath})`);
+    }
+
+    const content = await readTextOrBinary(file);
+    if (content === null) {
       throw new Error(`Cannot import binary file: ${rangeParsed.path} (resolved to ${resolvedPath})`);
     }
 
     if (verbose) {
       console.error(`[imports] Loading lines ${rangeParsed.start}-${rangeParsed.end} from: ${rangeParsed.path}`);
     }
-
-    const content = await file.text();
     // Track the resolved import
     if (resolvedImports) {
       resolvedImports.push(importPath);
@@ -909,8 +954,8 @@ async function processFileImport(
     throw new FileSizeLimitError(resolvedPath, file.size);
   }
 
-  // Check for binary file (throw error for direct imports)
-  if (await isBinaryFileAsync(resolvedPath)) {
+  // Check extension first (fast path)
+  if (isBinaryFile(resolvedPath)) {
     throw new Error(`Cannot import binary file: ${importPath} (resolved to ${resolvedPath})`);
   }
 
@@ -923,7 +968,10 @@ async function processFileImport(
   }
 
   // Read file content
-  const content = await file.text();
+  const content = await readTextOrBinary(file);
+  if (content === null) {
+    throw new Error(`Cannot import binary file: ${importPath} (resolved to ${resolvedPath})`);
+  }
 
   // Recursively process imports in the imported file
   // Use canonical path in stack for consistent cycle detection
