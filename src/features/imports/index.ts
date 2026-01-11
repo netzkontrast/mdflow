@@ -218,11 +218,9 @@ export function isBinaryFile(filePath: string, content?: Buffer): boolean {
 
   // If content provided, check for null bytes
   if (content) {
-    const checkSize = Math.min(content.length, BINARY_CHECK_SIZE);
-    for (let i = 0; i < checkSize; i++) {
-      if (content[i] === 0) {
-        return true;
-      }
+    const checkChunk = content.length > BINARY_CHECK_SIZE ? content.subarray(0, BINARY_CHECK_SIZE) : content;
+    if (checkChunk.includes(0)) {
+      return true;
     }
   }
 
@@ -246,13 +244,7 @@ export async function isBinaryFileAsync(filePath: string): Promise<boolean> {
   const buffer = await file.slice(0, BINARY_CHECK_SIZE).arrayBuffer();
   const bytes = new Uint8Array(buffer);
 
-  for (let i = 0; i < bytes.length; i++) {
-    if (bytes[i] === 0) {
-      return true;
-    }
-  }
-
-  return false;
+  return bytes.includes(0);
 }
 
 /** Maximum token count before error (approx 4 chars per token) */
