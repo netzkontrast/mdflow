@@ -20,6 +20,10 @@ import type {
   ExecutableCodeFenceAction,
 } from './imports-types';
 
+// Initialize the unified processor once to avoid overhead on every call.
+// This significantly improves performance when parsing many files.
+const processor = unified().use(remarkParse);
+
 /**
  * Range type for code regions and safe ranges
  */
@@ -86,7 +90,7 @@ export function findSafeRanges(content: string): Range[] {
     }
   }
 
-  const processor = unified().use(remarkParse);
+  // Reuse the processor instance to avoid instantiation overhead
   const ast = processor.parse(content) as Root;
 
   // Collect all code regions (fenced + inline)
