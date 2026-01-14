@@ -12,7 +12,7 @@ import {
   isGlobPattern,
   parseLineRange,
   parseSymbolExtraction,
-} from './imports-parser';
+} from './parser';
 
 describe('nested backtick edge cases', () => {
   it('handles nested single backticks correctly', () => {

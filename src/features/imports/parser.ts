@@ -50,6 +50,9 @@ function invertRanges(codeRegions: Range[], contentLength: number): Range[] {
   return safeRanges;
 }
 
+// OPTIMIZATION: Reuse processor instance to avoid expensive re-initialization
+const processor = unified().use(remarkParse);
+
 /**
  * Uses a markdown AST parser to find code blocks (fenced and inline),
  * then returns the "safe" ranges where imports can be parsed.
@@ -86,25 +89,13 @@ export function findSafeRanges(content: string): Range[] {
     }
   }
 
-  const processor = unified().use(remarkParse);
   const ast = processor.parse(content) as Root;
 
   // Collect all code regions (fenced + inline)
   const codeRegions: Range[] = [];
 
-  // Find fenced/indented code blocks
-  visit(ast, 'code', (node) => {
-    if (node.position?.start.offset !== undefined &&
-        node.position?.end.offset !== undefined) {
-      codeRegions.push({
-        start: node.position.start.offset,
-        end: node.position.end.offset,
-      });
-    }
-  });
-
-  // Find inline code spans
-  visit(ast, 'inlineCode', (node) => {
+  // OPTIMIZATION: Visit both node types in a single traversal
+  visit(ast, ['code', 'inlineCode'], (node) => {
     if (node.position?.start.offset !== undefined &&
         node.position?.end.offset !== undefined) {
       codeRegions.push({
