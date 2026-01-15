@@ -20,6 +20,9 @@ import type {
   ExecutableCodeFenceAction,
 } from './imports-types';
 
+// Optimize: Instantiate processor once to avoid setup overhead
+const processor = unified().use(remarkParse);
+
 /**
  * Range type for code regions and safe ranges
  */
@@ -86,25 +89,13 @@ export function findSafeRanges(content: string): Range[] {
     }
   }
 
-  const processor = unified().use(remarkParse);
   const ast = processor.parse(content) as Root;
 
   // Collect all code regions (fenced + inline)
   const codeRegions: Range[] = [];
 
-  // Find fenced/indented code blocks
-  visit(ast, 'code', (node) => {
-    if (node.position?.start.offset !== undefined &&
-        node.position?.end.offset !== undefined) {
-      codeRegions.push({
-        start: node.position.start.offset,
-        end: node.position.end.offset,
-      });
-    }
-  });
-
-  // Find inline code spans
-  visit(ast, 'inlineCode', (node) => {
+  // Find fenced/indented code blocks and inline code spans in one pass
+  visit(ast, ['code', 'inlineCode'], (node) => {
     if (node.position?.start.offset !== undefined &&
         node.position?.end.offset !== undefined) {
       codeRegions.push({
