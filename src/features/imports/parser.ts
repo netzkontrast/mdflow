@@ -123,11 +123,27 @@ export function findSafeRanges(content: string): Range[] {
 
 /**
  * Check if an index falls within any of the safe ranges
+ *
+ * OPTIMIZATION: Uses binary search instead of linear scan.
+ * Since safeRanges are guaranteed to be sorted by start position (from findSafeRanges -> invertRanges),
+ * we can find the relevant range in O(log N) instead of O(N).
  */
 function isInSafeRange(index: number, safeRanges: Array<{ start: number; end: number }>): boolean {
-  for (const range of safeRanges) {
+  let low = 0;
+  let high = safeRanges.length - 1;
+
+  while (low <= high) {
+    const mid = (low + high) >>> 1; // Faster integer division
+    const range = safeRanges[mid];
+
     if (index >= range.start && index < range.end) {
       return true;
+    }
+
+    if (index < range.start) {
+      high = mid - 1;
+    } else {
+      low = mid + 1;
     }
   }
   return false;
