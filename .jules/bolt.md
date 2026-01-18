@@ -5,3 +5,7 @@
 ## 2024-05-23 - [Optimizing Binary File Detection with Single Read]
 **Learning:** For small files (which constitute the majority of source code), reading the file twice (once to check for binary content via `slice()` and once to get text content via `text()`) is inefficient. Reading the entire file into a buffer once, checking for null bytes, and then decoding it to text reduces I/O operations by half for these files.
 **Action:** Use `readTextOrBinary` pattern to optimize file reading when binary detection is required, especially in loops processing many small files.
+
+## 2024-05-24 - [Optimizing Unified Processor Reuse]
+**Learning:** `unified` and `remark-parse` instantiation is expensive. Creating a new processor for every file parsing operation creates significant overhead. Reusing a single module-level processor instance avoids this cost. Additionally, `unist-util-visit` supports an array of node types, allowing single-pass AST traversal instead of multiple passes.
+**Action:** Always instantiate `unified` processors once at the module level if the configuration is static. Combine visitors for multiple node types into a single pass where possible.
