@@ -738,56 +738,75 @@ async function processGlobImport(
 
   const skippedBinaryFiles: string[] = [];
 
+  // Collect all paths first to enable parallel processing
+  const paths: string[] = [];
   for await (const file of glob.scan({ cwd: currentFileDir, absolute: true, onlyFiles: true })) {
-    // Check gitignore - calculate relative path from the glob's base directory
-    // This ensures paths don't start with "../" which the ignore package can't handle
-    const relativePath = relative(globBaseDir, file);
+    paths.push(file);
+  }
 
-    // Skip paths that are still outside the glob base (shouldn't happen, but safety check)
-    if (relativePath.startsWith('..')) {
-      if (verbose) {
-        console.error(`[imports] Skipping file outside glob base: ${file}`);
+  // Process files in parallel with concurrency limit
+  // We use a higher limit (20) for file reading as it's I/O bound but local disk is fast
+  const globSemaphore = new Semaphore(20);
+
+  const results = await Promise.all(paths.map(async (file) => {
+    return globSemaphore.run(async () => {
+      // Check gitignore - calculate relative path from the glob's base directory
+      // This ensures paths don't start with "../" which the ignore package can't handle
+      const relativePath = relative(globBaseDir, file);
+
+      // Skip paths that are still outside the glob base (shouldn't happen, but safety check)
+      if (relativePath.startsWith('..')) {
+        if (verbose) {
+          console.error(`[imports] Skipping file outside glob base: ${file}`);
+        }
+        return null;
       }
-      continue;
-    }
 
-    if (ig.ignores(relativePath)) {
-      continue;
-    }
+      if (ig.ignores(relativePath)) {
+        return null;
+      }
 
-    const bunFile = Bun.file(file);
+      const bunFile = Bun.file(file);
 
-    // Check individual file size before reading
-    if (exceedsLimit(bunFile.size)) {
-      throw new FileSizeLimitError(file, bunFile.size);
-    }
+      // Check individual file size before reading
+      if (exceedsLimit(bunFile.size)) {
+        throw new FileSizeLimitError(file, bunFile.size);
+      }
 
-    // Check extension first (fast path)
-    if (isBinaryFile(file)) {
-      skippedBinaryFiles.push(relativePath);
-      continue;
-    }
-
-    // Optimized binary check and content reading
-    // For small files (<8KB), read entire file and check buffer to avoid double read
-    // For large files, check first chunk first
-    let content: string;
-    try {
-      const result = await readTextOrBinary(bunFile);
-      if (result === null) {
+      // Check extension first (fast path)
+      if (isBinaryFile(file)) {
         skippedBinaryFiles.push(relativePath);
-        continue;
+        return null;
       }
-      content = result;
-    } catch (error) {
-      if (verbose) {
-        console.error(`[imports] Error reading file ${file}: ${(error as Error).message}`);
-      }
-      continue;
-    }
-    totalChars += content.length;
 
-    files.push({ path: relativePath, content });
+      // Optimized binary check and content reading
+      // For small files (<8KB), read entire file and check buffer to avoid double read
+      // For large files, check first chunk first
+      let content: string;
+      try {
+        const result = await readTextOrBinary(bunFile);
+        if (result === null) {
+          skippedBinaryFiles.push(relativePath);
+          return null;
+        }
+        content = result;
+      } catch (error) {
+        if (verbose) {
+          console.error(`[imports] Error reading file ${file}: ${(error as Error).message}`);
+        }
+        return null;
+      }
+
+      return { path: relativePath, content };
+    });
+  }));
+
+  // Filter out nulls and add to files array
+  for (const result of results) {
+    if (result) {
+      files.push(result);
+      totalChars += result.content.length;
+    }
   }
 
   // Log warning about skipped binary files
