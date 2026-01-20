@@ -733,12 +733,15 @@ async function processGlobImport(
   // Collect matching files
   // Use the resolved base directory as cwd for proper pattern matching
   const glob = new Glob(resolvedPattern.startsWith("/") ? resolvedPattern : pattern.replace(/^\.\//, ""));
-  const files: Array<{ path: string; content: string }> = [];
-  let totalChars = 0;
 
-  const skippedBinaryFiles: string[] = [];
-
+  // Collect all files first (scanning is fast)
+  const allFiles: string[] = [];
   for await (const file of glob.scan({ cwd: currentFileDir, absolute: true, onlyFiles: true })) {
+    allFiles.push(file);
+  }
+
+  // Filter out ignored files (sync operation)
+  const filteredFiles = allFiles.filter(file => {
     // Check gitignore - calculate relative path from the glob's base directory
     // This ensures paths don't start with "../" which the ignore package can't handle
     const relativePath = relative(globBaseDir, file);
@@ -748,47 +751,54 @@ async function processGlobImport(
       if (verbose) {
         console.error(`[imports] Skipping file outside glob base: ${file}`);
       }
-      continue;
+      return false;
     }
 
     if (ig.ignores(relativePath)) {
-      continue;
+      return false;
     }
+    return true;
+  });
 
-    const bunFile = Bun.file(file);
+  const skippedBinaryFiles: string[] = [];
 
-    // Check individual file size before reading
-    if (exceedsLimit(bunFile.size)) {
-      throw new FileSizeLimitError(file, bunFile.size);
-    }
+  // Process files in parallel with concurrency limit
+  const semaphore = new Semaphore(DEFAULT_CONCURRENCY_LIMIT);
 
-    // Check extension first (fast path)
-    if (isBinaryFile(file)) {
-      skippedBinaryFiles.push(relativePath);
-      continue;
-    }
+  const results = await Promise.all(filteredFiles.map(async (file) => {
+    return semaphore.run(async () => {
+      const relativePath = relative(globBaseDir, file);
+      const bunFile = Bun.file(file);
 
-    // Optimized binary check and content reading
-    // For small files (<8KB), read entire file and check buffer to avoid double read
-    // For large files, check first chunk first
-    let content: string;
-    try {
-      const result = await readTextOrBinary(bunFile);
-      if (result === null) {
+      // Check individual file size before reading
+      if (exceedsLimit(bunFile.size)) {
+        throw new FileSizeLimitError(file, bunFile.size);
+      }
+
+      // Check extension first (fast path)
+      if (isBinaryFile(file)) {
         skippedBinaryFiles.push(relativePath);
-        continue;
+        return null;
       }
-      content = result;
-    } catch (error) {
-      if (verbose) {
-        console.error(`[imports] Error reading file ${file}: ${(error as Error).message}`);
-      }
-      continue;
-    }
-    totalChars += content.length;
 
-    files.push({ path: relativePath, content });
-  }
+      // Optimized binary check and content reading
+      try {
+        const result = await readTextOrBinary(bunFile);
+        if (result === null) {
+          skippedBinaryFiles.push(relativePath);
+          return null;
+        }
+        return { path: relativePath, content: result };
+      } catch (error) {
+        if (verbose) {
+          console.error(`[imports] Error reading file ${file}: ${(error as Error).message}`);
+        }
+        return null;
+      }
+    });
+  }));
+
+  const files = results.filter((f): f is { path: string; content: string } => f !== null);
 
   // Log warning about skipped binary files
   if (skippedBinaryFiles.length > 0 && verbose) {
