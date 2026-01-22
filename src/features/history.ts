@@ -48,20 +48,34 @@ export async function loadHistory(): Promise<HistoryData> {
   return historyData!;
 }
 
+let saveHistoryTimer: ReturnType<typeof setTimeout> | null = null;
+
 /**
- * Save history to disk (fire-and-forget)
+ * Save history to disk (debounced, fire-and-forget)
  */
 async function saveHistory(): Promise<void> {
   if (!historyData) return;
 
-  try {
-    // Ensure directory exists
-    const dir = join(homedir(), ".mdflow");
-    await Bun.write(join(dir, ".keep"), ""); // Create dir if needed
-    await Bun.write(HISTORY_PATH, JSON.stringify(historyData, null, 2));
-  } catch {
-    // Silently fail - history is not critical
+  if (saveHistoryTimer) {
+    clearTimeout(saveHistoryTimer);
   }
+
+  // Debounce writes to avoid disk I/O thrashing during loops/batch operations
+  saveHistoryTimer = setTimeout(async () => {
+    try {
+      // Ensure directory exists
+      const dir = join(homedir(), ".mdflow");
+      await Bun.write(join(dir, ".keep"), ""); // Create dir if needed
+      await Bun.write(HISTORY_PATH, JSON.stringify(historyData, null, 2));
+    } catch {
+      // Silently fail - history is not critical
+    }
+    saveHistoryTimer = null;
+  }, 500);
+
+  // Unref to allow process to exit if this is the only thing pending
+  // (though it means we might lose the write on fast exit, which is acceptable for history)
+  saveHistoryTimer.unref();
 }
 
 /**
@@ -201,20 +215,32 @@ export async function loadVariableHistory(): Promise<VariableHistoryData> {
   return variableHistoryData!;
 }
 
+let saveVariableHistoryTimer: ReturnType<typeof setTimeout> | null = null;
+
 /**
- * Save variable history to disk
+ * Save variable history to disk (debounced)
  */
 async function saveVariableHistory(): Promise<void> {
   if (!variableHistoryData) return;
 
-  try {
-    // Ensure directory exists
-    const dir = join(homedir(), ".mdflow");
-    await Bun.write(join(dir, ".keep"), ""); // Create dir if needed
-    await Bun.write(VARIABLE_HISTORY_PATH, JSON.stringify(variableHistoryData, null, 2));
-  } catch {
-    // Silently fail - history is not critical
+  if (saveVariableHistoryTimer) {
+    clearTimeout(saveVariableHistoryTimer);
   }
+
+  // Debounce writes
+  saveVariableHistoryTimer = setTimeout(async () => {
+    try {
+      // Ensure directory exists
+      const dir = join(homedir(), ".mdflow");
+      await Bun.write(join(dir, ".keep"), ""); // Create dir if needed
+      await Bun.write(VARIABLE_HISTORY_PATH, JSON.stringify(variableHistoryData, null, 2));
+    } catch {
+      // Silently fail - history is not critical
+    }
+    saveVariableHistoryTimer = null;
+  }, 500);
+
+  saveVariableHistoryTimer.unref();
 }
 
 /**
