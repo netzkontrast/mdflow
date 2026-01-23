@@ -10,6 +10,10 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import { visit } from 'unist-util-visit';
 import type { Root } from 'mdast';
+
+// OPTIMIZATION: Reuse the processor to avoid expensive instantiation
+const processor = unified().use(remarkParse);
+
 import type {
   ImportAction,
   FileImportAction,
@@ -86,7 +90,6 @@ export function findSafeRanges(content: string): Range[] {
     }
   }
 
-  const processor = unified().use(remarkParse);
   const ast = processor.parse(content) as Root;
 
   // Collect all code regions (fenced + inline)
@@ -125,9 +128,21 @@ export function findSafeRanges(content: string): Range[] {
  * Check if an index falls within any of the safe ranges
  */
 function isInSafeRange(index: number, safeRanges: Array<{ start: number; end: number }>): boolean {
-  for (const range of safeRanges) {
+  let left = 0;
+  let right = safeRanges.length - 1;
+
+  while (left <= right) {
+    const mid = Math.floor((left + right) / 2);
+    const range = safeRanges[mid]!;
+
     if (index >= range.start && index < range.end) {
       return true;
+    }
+
+    if (index < range.start) {
+      right = mid - 1;
+    } else {
+      left = mid + 1;
     }
   }
   return false;
