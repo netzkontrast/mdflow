@@ -20,6 +20,9 @@ import type {
   ExecutableCodeFenceAction,
 } from './imports-types';
 
+// Instantiate the processor once at module level to avoid overhead on every call.
+const processor = unified().use(remarkParse);
+
 /**
  * Range type for code regions and safe ranges
  */
@@ -86,7 +89,6 @@ export function findSafeRanges(content: string): Range[] {
     }
   }
 
-  const processor = unified().use(remarkParse);
   const ast = processor.parse(content) as Root;
 
   // Collect all code regions (fenced + inline)
@@ -123,11 +125,24 @@ export function findSafeRanges(content: string): Range[] {
 
 /**
  * Check if an index falls within any of the safe ranges
+ * Uses binary search for O(log N) lookup
  */
 function isInSafeRange(index: number, safeRanges: Array<{ start: number; end: number }>): boolean {
-  for (const range of safeRanges) {
+  let left = 0;
+  let right = safeRanges.length - 1;
+
+  while (left <= right) {
+    const mid = (left + right) >>> 1; // Faster than Math.floor((left + right) / 2)
+    const range = safeRanges[mid];
+
     if (index >= range.start && index < range.end) {
       return true;
+    }
+
+    if (index < range.start) {
+      right = mid - 1;
+    } else {
+      left = mid + 1;
     }
   }
   return false;
