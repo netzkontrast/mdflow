@@ -27,6 +27,7 @@ interface HistoryData {
 const HISTORY_PATH = join(homedir(), ".mdflow", "history.json");
 
 let historyData: HistoryData | null = null;
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
 /**
  * Load history from disk (cached after first load)
@@ -62,6 +63,20 @@ async function saveHistory(): Promise<void> {
   } catch {
     // Silently fail - history is not critical
   }
+}
+
+/**
+ * Schedule a save of history data (debounced)
+ */
+function scheduleSave(): void {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+  }
+
+  saveTimer = setTimeout(() => {
+    saveHistory().catch(() => {});
+    saveTimer = null;
+  }, 200);
 }
 
 /**
@@ -122,7 +137,7 @@ export async function recordUsage(path: string): Promise<void> {
   historyData![path]!.lastUsed = Date.now();
 
   // Fire and forget save
-  saveHistory().catch(() => {});
+  scheduleSave();
 }
 
 /**
@@ -139,7 +154,7 @@ export async function recordTouch(path: string): Promise<void> {
   historyData![path]!.lastTouched = Date.now();
 
   // Fire and forget save
-  saveHistory().catch(() => {});
+  scheduleSave();
 }
 
 /**
@@ -153,6 +168,10 @@ export function getHistoryData(): HistoryData | null {
  * Reset history data (for testing)
  */
 export function resetHistory(): void {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
   historyData = null;
 }
 
