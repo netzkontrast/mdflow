@@ -398,88 +398,110 @@ function extractLines(content: string, start: number, end: number): string {
  * Supports: interface, type, function, class, const, let, var, enum
  */
 function extractSymbol(content: string, symbolName: string): string {
-  const lines = content.split("\n");
-
-  // Patterns to match symbol declarations
+  // Patterns to match symbol declarations - using multiline flag (m) to match start of lines
+  // We combine all patterns into a single Regex for performance (one pass instead of multiple)
   const patterns = [
     // interface Name { ... }
-    new RegExp(`^(export\\s+)?interface\\s+${symbolName}\\s*(extends\\s+[^{]+)?\\{`),
+    `(?:interface\\s+${symbolName}\\s*(?:extends\\s+[^{]+)?\\{)`,
     // type Name = ...
-    new RegExp(`^(export\\s+)?type\\s+${symbolName}\\s*(<[^>]+>)?\\s*=`),
+    `(?:type\\s+${symbolName}\\s*(?:<[^>]+>)?\\s*=)`,
     // function Name(...) { ... }
-    new RegExp(`^(export\\s+)?(async\\s+)?function\\s+${symbolName}\\s*(<[^>]+>)?\\s*\\(`),
+    `(?:(?:async\\s+)?function\\s+${symbolName}\\s*(?:<[^>]+>)?\\s*\\()`,
     // class Name { ... }
-    new RegExp(`^(export\\s+)?(abstract\\s+)?class\\s+${symbolName}\\s*(extends\\s+[^{]+)?(implements\\s+[^{]+)?\\{`),
+    `(?:(?:abstract\\s+)?class\\s+${symbolName}\\s*(?:extends\\s+[^{]+)?(?:implements\\s+[^{]+)?\\{)`,
     // const/let/var Name = ...
-    new RegExp(`^(export\\s+)?(const|let|var)\\s+${symbolName}\\s*(:[^=]+)?\\s*=`),
+    `(?:(?:const|let|var)\\s+${symbolName}\\s*(?::[^=]+)?\\s*=)`,
     // enum Name { ... }
-    new RegExp(`^(export\\s+)?enum\\s+${symbolName}\\s*\\{`),
+    `(?:enum\\s+${symbolName}\\s*\\{)`,
   ];
 
-  let startLine = -1;
+  // Allow indentation: ^[ \t]*
+  const combinedPattern = new RegExp(`^[ \\t]*(?:export\\s+)?(?:${patterns.join('|')})`, 'm');
+  const match = combinedPattern.exec(content);
+
+  if (!match) {
+    throw new Error(`Symbol "${symbolName}" not found in file`);
+  }
+
+  const startIndex = match.index;
+
+  // 2. Scan for end of block/declaration
   let braceDepth = 0;
   let parenDepth = 0;
   let inString = false;
   let stringChar = "";
-  let foundDeclaration = false;
 
-  for (let i = 0; i < lines.length; i++) {
-    const currentLine = lines[i];
-    if (!currentLine) continue;
-    const line = currentLine.trim();
+  // Track line start to replicate line-based checks
+  let lineStart = startIndex;
 
-    // Check if this line starts the symbol we're looking for
-    if (startLine === -1) {
-      for (const pattern of patterns) {
-        if (pattern.test(line)) {
-          startLine = i;
-          foundDeclaration = true;
-          break;
-        }
-      }
+  // We start scanning from startIndex
+  for (let i = startIndex; i < content.length; i++) {
+    const char = content[i];
+    const prevChar = i > 0 ? content[i - 1] : "";
+
+    // Handle string literals
+    if (!inString && (char === '"' || char === "'" || char === "`")) {
+      inString = true;
+      stringChar = char;
+    } else if (inString && char === stringChar && prevChar !== "\\") {
+      inString = false;
     }
 
-    if (startLine !== -1) {
-      // Count braces/parens to find the end of the declaration
-      for (let j = 0; j < currentLine.length; j++) {
-        const char = currentLine[j];
-        const prevChar = j > 0 ? currentLine[j - 1] : "";
+    if (!inString) {
+      if (char === "{") braceDepth++;
+      else if (char === "}") braceDepth--;
+      else if (char === "(") parenDepth++;
+      else if (char === ")") parenDepth--;
+    }
 
-        // Handle string literals
-        if (!inString && (char === '"' || char === "'" || char === "`")) {
-          inString = true;
-          stringChar = char;
-        } else if (inString && char === stringChar && prevChar !== "\\") {
-          inString = false;
+    // Check for end of line (or end of file)
+    const isEOF = i === content.length - 1;
+    if (char === '\n' || isEOF) {
+      // End index for this line (excluding newline unless EOF)
+      const lineEnd = isEOF ? i + 1 : i;
+
+      // Check if we've closed all braces/parens
+      if (braceDepth === 0 && parenDepth === 0) {
+        // Get current line content for checks
+        const currentLine = content.slice(lineStart, lineEnd).trim();
+
+        // Check for semicolon or block end
+        if (currentLine.endsWith(";") || currentLine.endsWith("}")) {
+          // Found end! Return slice from start to end of this line
+          return content.slice(startIndex, lineEnd);
         }
 
-        if (!inString) {
-          if (char === "{") braceDepth++;
-          else if (char === "}") braceDepth--;
-          else if (char === "(") parenDepth++;
-          else if (char === ")") parenDepth--;
+        // Check next line start (lookahead)
+        if (!isEOF) {
+          // Find next non-whitespace char after newline
+          let nextCharIdx = i + 1;
+          while (nextCharIdx < content.length && /\s/.test(content[nextCharIdx])) {
+            nextCharIdx++;
+          }
+
+          if (nextCharIdx < content.length) {
+            const nextChar = content[nextCharIdx];
+            // If next line doesn't start with dot (method chaining), we assume end of declaration
+            if (nextChar !== '.') {
+              return content.slice(startIndex, lineEnd);
+            }
+          } else {
+             // EOF after whitespace - end here
+             return content.slice(startIndex, lineEnd);
+          }
+        } else {
+           // EOF and depth 0 - end here
+           return content.slice(startIndex, lineEnd);
         }
       }
 
-      // Check if we've closed all braces (for block declarations)
-      if (foundDeclaration && braceDepth === 0 && parenDepth === 0) {
-        // For type aliases, we need to check for semicolon or end of statement
-        const trimmedLine = currentLine.trim();
-        const nextLine = lines[i + 1];
-        if (trimmedLine.endsWith(";") || trimmedLine.endsWith("}") ||
-            (i + 1 < lines.length && nextLine && !nextLine.trim().startsWith("."))) {
-          return lines.slice(startLine, i + 1).join("\n");
-        }
-      }
+      // Move lineStart to next char
+      lineStart = i + 1;
     }
   }
 
-  if (startLine !== -1) {
-    // Return everything from start to end if we couldn't find proper closure
-    return lines.slice(startLine).join("\n");
-  }
-
-  throw new Error(`Symbol "${symbolName}" not found in file`);
+  // If we reach here, we didn't find a clean end, return everything from start
+  return content.slice(startIndex);
 }
 
 /**
