@@ -749,3 +749,18 @@ describe("executable code fences", () => {
     expect(hasImports('```sh\n#!/bin/bash\necho hi\n```')).toBe(true);
   });
 });
+
+test("expandImports extracts indented symbol", async () => {
+  const tsContent = `
+  // Indented content
+  export const INDENTED = {
+    key: "value"
+  };
+`;
+  await Bun.write(join(testDir, "indented.ts"), tsContent);
+
+  const content = "@./indented.ts#INDENTED";
+  const result = await expandImports(content, testDir);
+  expect(result).toContain("const INDENTED");
+  expect(result).toContain("key: \"value\"");
+});
