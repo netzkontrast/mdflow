@@ -134,36 +134,22 @@ function isInSafeRange(index: number, safeRanges: Array<{ start: number; end: nu
 }
 
 /**
- * Pattern to match @filepath imports (including globs, line ranges, and symbols)
- * Matches: @~/path/to/file.md, @./relative/path.md, @/absolute/path.md
- * Also: @./src/**\/*.ts, @./file.ts:10-50, @./file.ts#Symbol
- * The path continues until whitespace or end of line
+ * Combined pattern to match all import types in a single pass.
+ *
+ * Groups:
+ * 1. Executable Fence Start (e.g. ```ts)
+ * 2. Executable Fence Info (e.g. ts)
+ * 3. Executable Fence Shebang (e.g. #!/bin/bash)
+ * 4. Executable Fence Code (content)
+ *    \1: Backreference to Fence Start
+ *
+ * 5. Command Inline Start (e.g. ` or ``)
+ * 6. Command Inline Content
+ *    \5: Backreference to Command Start
+ *
+ * 7. Import Path/URL (e.g. https://... or ./file.ts)
  */
-const FILE_IMPORT_PATTERN = /@(~?[./][^\s]+)/g;
-
-/**
- * Pattern to match !`command` inlines with balanced backticks
- * Matches: !`any command here`, !``cmd with `backticks` ``
- * Supports commands containing backticks by using variable-length delimiters.
- * Capture group 1: The backtick delimiter (` or `` or ```)
- * Capture group 2: The command content
- */
-const COMMAND_INLINE_PATTERN = /!(`+)([\s\S]+?)\1/g;
-
-/**
- * Pattern to match @url imports
- * Matches: @https://example.com/path, @http://example.com/path
- * Does NOT match emails like foo@example.com (requires http:// or https://)
- * The URL continues until whitespace or end of line
- */
-const URL_IMPORT_PATTERN = /@(https?:\/\/[^\s]+)/g;
-
-/**
- * Pattern to match executable code fences
- * Matches: ```lang\n#!shebang\ncode\n```
- * Supports variable length fences.
- */
-const EXECUTABLE_FENCE_PATTERN = /(`{3,})(.*?)\n(#![^\n]+)\n([\s\S]*?)\1/g;
+const COMBINED_PATTERN = /(`{3,})(.*?)\n(#![^\n]+)\n([\s\S]*?)\1|!(`+)([\s\S]+?)\5|@((?:https?:\/\/[^\s]+)|(?:~?[./][^\s]+))/g;
 
 /**
  * Check if a path contains glob characters
@@ -287,74 +273,102 @@ export function parseImports(content: string): ImportAction[] {
     unsafeStarts.add(0);
   }
 
-  // Parse file imports (includes globs, line ranges, symbols)
-  FILE_IMPORT_PATTERN.lastIndex = 0;
+  // Pointer for efficient safe range lookups (amortized O(1))
+  let currentRangeIndex = 0;
+
+  // Helper to check safety using the moving pointer
+  // Note: match.index is guaranteed to be increasing
+  const isSafe = (index: number): boolean => {
+    // Advance pointer to the first range that ends after the index
+    while (currentRangeIndex < safeRanges.length && safeRanges[currentRangeIndex].end <= index) {
+      currentRangeIndex++;
+    }
+
+    // Check if the current range covers the index
+    // If ranges[i].start <= index < ranges[i].end
+    if (currentRangeIndex < safeRanges.length && safeRanges[currentRangeIndex].start <= index) {
+      return true;
+    }
+    return false;
+  };
+
+  COMBINED_PATTERN.lastIndex = 0;
   let match;
 
-  while ((match = FILE_IMPORT_PATTERN.exec(content)) !== null) {
-    // Only include imports that are in safe ranges (outside code blocks)
-    if (isInSafeRange(match.index, safeRanges) && match[1]) {
-      const action = parseFileImportPath(match[0], match[1], match.index);
-      actions.push(action);
+  while ((match = COMBINED_PATTERN.exec(content)) !== null) {
+    const index = match.index;
+    const fullMatch = match[0];
+
+    // Check which capture group matched
+
+    // Group 1: Executable Fence
+    if (match[1]) {
+      // Only process if the match aligns exactly with a known code block start
+      if (unsafeStarts.has(index)) {
+        const fence = match[1];
+        const infoString = match[2];
+        const shebang = match[3];
+        const code = match[4];
+
+        const language = (infoString ?? '').trim().split(/\s+/)[0] ?? '';
+
+        if (shebang && code !== undefined) {
+          const action: ExecutableCodeFenceAction = {
+            type: 'executable_code_fence',
+            language: language || 'txt',
+            shebang,
+            code: code.trim(),
+            original: fullMatch,
+            index,
+          };
+          actions.push(action);
+        }
+      }
+      continue;
     }
-  }
 
-  // Parse URL imports
-  URL_IMPORT_PATTERN.lastIndex = 0;
-  while ((match = URL_IMPORT_PATTERN.exec(content)) !== null) {
-    // Only include imports that are in safe ranges (outside code blocks)
-    if (isInSafeRange(match.index, safeRanges) && match[1]) {
-      const urlAction: UrlImportAction = {
-        type: 'url',
-        url: match[1],
-        original: match[0],
-        index: match.index,
-      };
-      actions.push(urlAction);
+    // For other types, verify they are in a safe range
+    if (!isSafe(index)) {
+      continue;
     }
-  }
 
-  // Parse command inlines (with balanced backtick support)
-  // match[1] = backtick delimiter, match[2] = command content
-  COMMAND_INLINE_PATTERN.lastIndex = 0;
-  while ((match = COMMAND_INLINE_PATTERN.exec(content)) !== null) {
-    // Only include imports that are in safe ranges (outside code blocks)
-    const commandContent = match[2];
-    if (isInSafeRange(match.index, safeRanges) && commandContent) {
-      const cmdAction: CommandImportAction = {
-        type: 'command',
-        command: commandContent,
-        original: match[0],
-        index: match.index,
-      };
-      actions.push(cmdAction);
-    }
-  }
-
-  // Parse executable code fences
-  // Must match a top-level code block (start of an unsafe gap)
-  EXECUTABLE_FENCE_PATTERN.lastIndex = 0;
-  while ((match = EXECUTABLE_FENCE_PATTERN.exec(content)) !== null) {
-    // Only process if the match aligns exactly with a known code block start
-    if (unsafeStarts.has(match.index)) {
-      const [fullMatch, fence, infoString, shebang, code] = match;
-      const language = (infoString ?? '').trim().split(/\s+/)[0] ?? ''; // Extract first word as language
-
-      if (shebang && code !== undefined) {
-        const action: ExecutableCodeFenceAction = {
-          type: 'executable_code_fence',
-          language: language || 'txt',
-          shebang,
-          code: code.trim(),
+    // Group 5: Command Inline
+    if (match[5]) {
+      const commandContent = match[6];
+      if (commandContent) {
+        const cmdAction: CommandImportAction = {
+          type: 'command',
+          command: commandContent,
           original: fullMatch,
-          index: match.index,
+          index,
         };
+        actions.push(cmdAction);
+      }
+      continue;
+    }
+
+    // Group 7: Import Path/URL
+    if (match[7]) {
+      const pathOrUrl = match[7];
+
+      // Check if it's a URL
+      if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://')) {
+        const urlAction: UrlImportAction = {
+          type: 'url',
+          url: pathOrUrl,
+          original: fullMatch,
+          index,
+        };
+        actions.push(urlAction);
+      } else {
+        // Must be a file import
+        const action = parseFileImportPath(fullMatch, pathOrUrl, index);
         actions.push(action);
       }
     }
   }
 
-  // Sort by index to maintain order
+  // Sort by index to maintain order (though COMBINED_PATTERN should already be ordered)
   actions.sort((a, b) => a.index - b.index);
 
   return actions;

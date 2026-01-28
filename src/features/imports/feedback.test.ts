@@ -1,7 +1,7 @@
 import { test, expect, beforeAll, afterAll, describe, afterEach } from "bun:test";
-import { expandImports, MAX_TOKENS, WARN_TOKENS, CHARS_PER_TOKEN } from "./imports";
+import { expandImports, MAX_TOKENS, WARN_TOKENS, CHARS_PER_TOKEN } from "./index";
 import { join } from "node:path";
-import { createTempDir, createStderrSpy, type ConsoleSpy } from "./test-utils";
+import { createTempDir, createStderrSpy, type ConsoleSpy } from "../../utils/test-utils";
 
 let testDir: string;
 let cleanup: () => Promise<void>;
